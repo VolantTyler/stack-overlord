@@ -20,9 +20,17 @@ https://stack-overlord.vercel.app
 
 Agentic development makes it possible to move quickly across code, pull requests, and deployments. It also makes it easier to drop a thread. A merge can succeed while the deployment silently fails, and the developer may not notice until production is stale. Stack Overlord was inspired by that cognitive gap: developers need a trustworthy final answer about whether their change actually shipped.
 
+## Before and after
+
+**Before:** A developer merges a change, sees GitHub accept it, switches tasks, and later discovers that a failed deployment left production stale. **After:** Stack Overlord preserves GitHub's verified workflow result, brings the developer back with a focused alert, and turns the available failure evidence into prioritized recovery steps that each include a way to verify the fix.
+
 ## What it does
 
 Stack Overlord receives signed GitHub webhooks and records the factual state of each workflow in a durable Postgres ledger. Its responsive dashboard shows running, successful, failed, and cancelled processes across desktop and mobile. Failed processes open into an evidence-backed GPT-5.6 diagnosis containing the likely cause, confidence, limitations, and prioritized recovery actions with verification steps. Discord alerts pull the developer back before the failure is forgotten.
+
+## What makes it different
+
+CI dashboards and chat notifications usually report that a job failed; general-purpose AI assistants can suggest fixes after a developer supplies context. Stack Overlord closes the gap between those experiences without asking AI to decide what happened: signed GitHub events remain the source of truth, accepted telemetry is stored before any optional enrichment, and GPT-5.6 explains only an already-verified failure using the available job and step evidence. The result is a durable post-merge ledger plus confidence-aware guidance, explicit limitations, and testable recovery steps—not another model-generated status summary.
 
 ## How we built it
 
@@ -63,7 +71,16 @@ The most useful boundary was separating machine-verifiable pipeline truth from m
 
 ## Judge testing instructions
 
-Open https://stack-overlord.vercel.app. The application runs without credentials and loads deterministic fixtures. Select **Replay failure**, then open the failed process to inspect verified state, diagnosis, evidence, uncertainty, and recommendations. Live judging will additionally show a real isolated Cognitive Bridge sandbox success and controlled failure.
+No account or credentials are required for the deterministic judging path:
+
+1. Open https://stack-overlord.vercel.app and confirm the dashboard labels its fixture-backed state.
+2. Select **Replay failure**.
+3. Open the failed process and confirm that its GitHub-derived status is distinct from the GPT-5.6 explanation.
+4. Review the cited job and failed-step evidence, confidence, and limitations.
+5. Expand the prioritized recommendations and check that each includes a concrete verification step.
+6. Narrow the browser or open the same incident on a phone to verify the responsive experience.
+
+If live integrations have been configured and verified before judging, the presenter can additionally demonstrate one success and one controlled failure from the isolated Cognitive Bridge sandbox. The deterministic path above remains the reliable fallback and never targets the original production repository or Firebase project.
 
 ## Demo video outline — under three minutes
 
