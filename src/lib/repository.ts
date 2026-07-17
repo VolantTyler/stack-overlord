@@ -66,12 +66,17 @@ export async function savePipelineEvent(input: {
   payload: Record<string, unknown>;
 }) {
   const db = getDb();
-  if (!db) return false;
+  if (!db) return "unavailable" as const;
 
-  await db.insert(pipelineEvents).values(input).onConflictDoNothing({
-    target: pipelineEvents.deliveryId,
-  });
-  return true;
+  const inserted = await db
+    .insert(pipelineEvents)
+    .values(input)
+    .onConflictDoNothing({
+      target: pipelineEvents.deliveryId,
+    })
+    .returning({ id: pipelineEvents.id });
+
+  return inserted.length > 0 ? ("stored" as const) : ("duplicate" as const);
 }
 
 export async function savePipelineRun(run: PipelineRun) {

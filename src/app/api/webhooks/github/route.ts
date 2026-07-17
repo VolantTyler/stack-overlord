@@ -36,13 +36,35 @@ export async function POST(request: Request) {
   }
 
   const metadata = webhookMetadata(payload);
-  const persisted = await savePipelineEvent({
+  const persistence = await savePipelineEvent({
     deliveryId,
     eventName,
     action: metadata.action,
     repository: metadata.repository,
     payload,
   });
+
+  if (persistence === "unavailable") {
+    return Response.json(
+      {
+        accepted: false,
+        persisted: false,
+        error: "Pipeline telemetry storage is not configured.",
+      },
+      { status: 503 },
+    );
+  }
+
+  if (persistence === "duplicate") {
+    return Response.json({
+      accepted: true,
+      persisted: false,
+      duplicate: true,
+      eventName,
+    });
+  }
+
+  const persisted = true;
 
   if (eventName !== "workflow_run") {
     return Response.json({ accepted: true, persisted, eventName });
@@ -56,7 +78,18 @@ export async function POST(request: Request) {
     );
   }
 
-  await savePipelineRun(run);
+  const runPersisted = await savePipelineRun(run);
+  if (!runPersisted) {
+    return Response.json(
+      {
+        accepted: false,
+        persisted: false,
+        eventPersisted: true,
+        error: "Pipeline run storage is not configured.",
+      },
+      { status: 503 },
+    );
+  }
 
   if (run.status === "failure") {
     try {

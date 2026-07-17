@@ -21,7 +21,7 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 - [x] README setup and environment instructions written.
 - [x] Lint passes.
 - [x] Type check passes.
-- [x] Eight automated tests pass.
+- [x] Automated regression tests pass.
 - [x] Production build passes.
 - [x] Browser verification passes on desktop and mobile without console errors.
 
@@ -59,12 +59,12 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 ### Potential Impact
 
 - [x] Real audience and silent post-merge failure problem stated.
-- [ ] Capture one concise before/after story for the video and Devpost description.
+- [x] Capture one concise before/after story for the video and Devpost description.
 
 ### Quality of the Idea
 
 - [x] Differentiation is closed-loop deployment truth plus evidence-backed, confidence-aware diagnosis.
-- [ ] Add a short competitor/differentiation paragraph to the final submission.
+- [x] Add a short competitor/differentiation paragraph to the final submission.
 
 ## Devpost submission gates
 
