@@ -1,0 +1,18 @@
+{
+  "action": "requested",
+  "repository": { "full_name": "VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo" },
+  "workflow_run": {
+    "id": 880001,
+    "name": "Deploy to Firebase Hosting on PR",
+    "display_title": "demo: preview deployment is progressing",
+    "head_branch": "demo/walkthrough",
+    "head_sha": "1000000000000000000000000000000000000001",
+    "status": "in_progress",
+    "conclusion": null,
+    "event": "pull_request",
+    "created_at": "2026-07-17T14:00:00.000Z",
+    "updated_at": "2026-07-17T14:00:20.000Z",
+    "html_url": "https://github.com/VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo/actions",
+    "actor": { "login": "stack-overlord-demo" }
+  }
+}
