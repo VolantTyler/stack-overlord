@@ -2,12 +2,15 @@
 
 import { useMemo, useState } from "react";
 import {
+  ArrowRight,
   AlertTriangle,
   CheckCircle2,
   CircleDot,
   Clock3,
+  Database,
   ExternalLink,
   GitBranch,
+  MessageCircle,
   Radio,
   RotateCcw,
   ShieldCheck,
@@ -49,6 +52,8 @@ import type {
   PipelineRun,
   PipelineStatus,
 } from "@/lib/pipeline";
+
+export type DashboardVersion = "1" | "2" | "3";
 
 const statusDetails: Record<
   PipelineStatus,
@@ -117,6 +122,83 @@ function formatDuration(seconds: number | null) {
 
 function shortSha(sha: string) {
   return sha.slice(0, 7);
+}
+
+const versionDetails: Record<
+  DashboardVersion,
+  { label: string; name: string; description: string }
+> = {
+  "1": {
+    label: "Version 1",
+    name: "Command center",
+    description: "Focused dark operations dashboard",
+  },
+  "2": {
+    label: "Version 2",
+    name: "Pixel pipes",
+    description: "Cartoon game-board pipeline with chunky handoffs",
+  },
+  "3": {
+    label: "Version 3",
+    name: "Wireframe schematic",
+    description: "Luminous signal map with technical grid lines",
+  },
+};
+
+const routeStages = [
+  { label: "Webhook", caption: "GitHub event", icon: Radio },
+  { label: "Persist", caption: "Truth recorded", icon: Database },
+  { label: "Diagnose", caption: "Evidence explained", icon: Sparkles },
+  { label: "Notify", caption: "Team loop closed", icon: MessageCircle },
+];
+
+function PipelineRoute({ version }: { version: "2" | "3" }) {
+  const routeName = version === "2" ? "Pixel pipe network" : "Signal path schematic";
+
+  return (
+    <section className="pipeline-route" aria-labelledby="route-heading">
+      <div className="pipeline-route__heading">
+        <div>
+          <p className="font-mono text-xs uppercase tracking-[0.2em] text-primary">
+            Visual route
+          </p>
+          <h2 id="route-heading" className="mt-2 text-xl font-semibold tracking-tight">
+            One event. Four handoffs.
+          </h2>
+        </div>
+        <span className="pipeline-route__mode">{routeName}</span>
+      </div>
+
+      <div className="pipeline-route__map" role="list" aria-label="Pipeline handoffs">
+        {routeStages.map((stage, index) => {
+          const Icon = stage.icon;
+
+          return (
+            <div className="pipeline-route__unit" key={stage.label}>
+              <div className="pipeline-route__stage" role="listitem">
+                <span className="pipeline-route__stage-icon">
+                  <Icon className="size-5" aria-hidden="true" />
+                </span>
+                <span>
+                  <strong>{stage.label}</strong>
+                  <small>{stage.caption}</small>
+                </span>
+              </div>
+              {index < routeStages.length - 1 && (
+                <div className="pipeline-route__connector" aria-hidden="true">
+                  <span />
+                  <ArrowRight className="size-4" />
+                </div>
+              )}
+            </div>
+          );
+        })}
+      </div>
+      <p className="pipeline-route__note">
+        GitHub webhook conclusions are the source of truth. AI only joins the route when a failure needs explanation.
+      </p>
+    </section>
+  );
 }
 
 function SummaryCard({
@@ -284,9 +366,11 @@ function FailureDetails({ run }: { run: PipelineRun }) {
 export function Dashboard({
   initialRuns,
   source,
+  version = "1",
 }: {
   initialRuns: PipelineRun[];
   source: DashboardSource;
+  version?: DashboardVersion;
 }) {
   const [runs, setRuns] = useState(initialRuns);
   const [filter, setFilter] = useState<"all" | PipelineStatus>("all");
@@ -335,7 +419,10 @@ export function Dashboard({
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[1480px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+    <main
+      className="dashboard-shell mx-auto min-h-screen w-full max-w-[1480px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8"
+      data-dashboard-version={version}
+    >
       <header className="mb-8 flex flex-col gap-5 border-b border-white/8 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
           <div className="flex size-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-[0_0_32px_-10px_var(--primary)]">
@@ -350,6 +437,12 @@ export function Dashboard({
               >
                 MVP
               </Badge>
+              <Badge
+                variant="outline"
+                className="version-mark border-primary/20 bg-primary/8 text-[10px] uppercase tracking-[0.12em] text-primary"
+              >
+                {versionDetails[version].label}: {versionDetails[version].name}
+              </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
               Commit-to-deployment command center
@@ -357,7 +450,19 @@ export function Dashboard({
           </div>
         </div>
 
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <nav className="version-selector" aria-label="Visual versions">
+            {(["1", "2", "3"] as DashboardVersion[]).map((option) => (
+              <a
+                className={cn("version-selector__link", option === version && "is-active")}
+                href={option === "1" ? "/" : `/?version=${option}`}
+                aria-current={option === version ? "page" : undefined}
+                key={option}
+              >
+                {versionDetails[option].label}
+              </a>
+            ))}
+          </nav>
           <div className="flex items-center gap-2 rounded-full border bg-card/60 px-3 py-2 text-xs text-muted-foreground">
             <span
               className={cn(
@@ -423,6 +528,8 @@ export function Dashboard({
           />
         </div>
       </section>
+
+      {version !== "1" && <PipelineRoute version={version} />}
 
       <Card className="mt-6 overflow-hidden border-white/8 bg-card/75 shadow-none backdrop-blur">
         <CardHeader className="gap-4 border-b border-white/8 sm:flex-row sm:items-center sm:justify-between">

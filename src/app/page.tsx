@@ -1,10 +1,27 @@
 import { Dashboard } from "@/components/dashboard";
+import type { DashboardVersion } from "@/components/dashboard";
 import { listPipelineRuns } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
 
-export default async function Home() {
-  const { runs, source } = await listPipelineRuns();
+function parseVersion(value: string | string[] | undefined): DashboardVersion {
+  const candidate = Array.isArray(value) ? value[0] : value;
+  return candidate === "2" || candidate === "3" ? candidate : "1";
+}
 
-  return <Dashboard initialRuns={runs} source={source} />;
+export default async function Home({
+  searchParams,
+}: {
+  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
+}) {
+  const { runs, source } = await listPipelineRuns();
+  const params = await searchParams;
+
+  return (
+    <Dashboard
+      initialRuns={runs}
+      source={source}
+      version={parseVersion(params.version)}
+    />
+  );
 }
