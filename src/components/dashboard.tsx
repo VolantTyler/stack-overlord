@@ -8,7 +8,7 @@ import {
   Clock3,
   ExternalLink,
   GitBranch,
-  Radio,
+  Gamepad2,
   RotateCcw,
   ShieldCheck,
   Sparkles,
@@ -134,7 +134,12 @@ function SummaryCard({
   const Icon = detail.icon;
 
   return (
-    <Card className="border-white/8 bg-card/75 shadow-none backdrop-blur">
+    <Card
+      className={cn(
+        "pixel-panel summary-station shadow-none",
+        `station-${status}`,
+      )}
+    >
       <CardHeader className="flex flex-row items-start justify-between space-y-0 pb-3">
         <div>
           <CardDescription>{label}</CardDescription>
@@ -142,7 +147,7 @@ function SummaryCard({
             {value.toString().padStart(2, "0")}
           </CardTitle>
         </div>
-        <div className={cn("rounded-lg border p-2", detail.badge)}>
+        <div className={cn("pixel-icon-box border p-2", detail.badge)}>
           <Icon className="size-4" aria-hidden="true" />
         </div>
       </CardHeader>
@@ -335,20 +340,23 @@ export function Dashboard({
   }
 
   return (
-    <main className="mx-auto min-h-screen w-full max-w-[1480px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
-      <header className="mb-8 flex flex-col gap-5 border-b border-white/8 pb-6 sm:flex-row sm:items-center sm:justify-between">
+    <main className="dashboard-world mx-auto min-h-screen w-full max-w-[1480px] px-4 py-5 sm:px-6 lg:px-8 lg:py-8">
+      <div className="pixel-stars" aria-hidden="true" />
+      <header className="pixel-header mb-8 flex flex-col gap-5 pb-6 sm:flex-row sm:items-center sm:justify-between">
         <div className="flex items-center gap-3">
-          <div className="flex size-10 items-center justify-center rounded-xl border border-primary/20 bg-primary/10 text-primary shadow-[0_0_32px_-10px_var(--primary)]">
-            <Radio className="size-5" aria-hidden="true" />
+          <div className="overlord-mark flex size-12 items-center justify-center text-primary">
+            <Gamepad2 className="size-6" aria-hidden="true" />
           </div>
           <div>
             <div className="flex items-center gap-2">
-              <h1 className="text-lg font-semibold tracking-tight">Stack Overlord</h1>
+              <h1 className="pixel-title text-lg font-black uppercase tracking-wider">
+                Stack Overlord
+              </h1>
               <Badge
                 variant="outline"
                 className="border-primary/20 bg-primary/8 text-[10px] uppercase tracking-[0.16em] text-primary"
               >
-                MVP
+                Pixel pipeline · V1
               </Badge>
             </div>
             <p className="text-sm text-muted-foreground">
@@ -396,7 +404,7 @@ export function Dashboard({
           </div>
         </div>
 
-        <div className="grid grid-cols-2 gap-3 lg:grid-cols-4">
+        <div className="pipeline-map grid grid-cols-2 gap-x-5 gap-y-8 lg:grid-cols-4">
           <SummaryCard
             label="Succeeded"
             value={counts.success}
@@ -424,7 +432,10 @@ export function Dashboard({
         </div>
       </section>
 
-      <Card className="mt-6 overflow-hidden border-white/8 bg-card/75 shadow-none backdrop-blur">
+      <div className="pipe-drop" aria-hidden="true">
+        <span />
+      </div>
+      <Card className="pixel-panel ledger-panel mt-0 overflow-hidden shadow-none">
         <CardHeader className="gap-4 border-b border-white/8 sm:flex-row sm:items-center sm:justify-between">
           <div>
             <CardTitle className="text-base">Pipeline ledger</CardTitle>
