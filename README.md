@@ -34,6 +34,10 @@ npm run dev
 
 Open [http://localhost:3000](http://localhost:3000). Without environment variables, the dashboard loads deterministic Cognitive Bridge sandbox fixtures and exposes a **Replay failure** control.
 
+For a presenter-ready tour of every dashboard state, signed webhook replays,
+security checks, idempotency, optional integrations, and reset instructions, see
+the [demo walkthrough](docs/demo-walkthrough.md).
+
 ## Environment variables
 
 | Variable | Purpose | Required for demo UI |
