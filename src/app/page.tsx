@@ -1,4 +1,4 @@
-import { Dashboard } from "@/components/dashboard";
+import { DesignPreviewDashboard } from "@/components/design-preview-dashboard";
 import { listPipelineRuns } from "@/lib/repository";
 
 export const dynamic = "force-dynamic";
@@ -6,5 +6,12 @@ export const dynamic = "force-dynamic";
 export default async function Home() {
   const { runs, source } = await listPipelineRuns();
 
-  return <Dashboard initialRuns={runs} source={source} />;
+  return (
+    <DesignPreviewDashboard
+      concept="a"
+      initialRuns={runs}
+      previewMode={false}
+      source={source}
+    />
+  );
 }
