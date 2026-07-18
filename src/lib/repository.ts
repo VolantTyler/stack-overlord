@@ -1,4 +1,4 @@
-import { desc } from "drizzle-orm";
+import { desc, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { pipelineEvents, pipelineRuns } from "@/db/schema";
@@ -35,22 +35,47 @@ function serializeRun(row: typeof pipelineRuns.$inferSelect): PipelineRun {
 export async function listPipelineRuns(): Promise<{
   runs: PipelineRun[];
   source: DashboardSource;
+}>;
+export async function listPipelineRuns(input: {
+  repository?: string;
+}): Promise<{
+  runs: PipelineRun[];
+  source: DashboardSource;
+}>;
+export async function listPipelineRuns(input: { repository?: string } = {}): Promise<{
+  runs: PipelineRun[];
+  source: DashboardSource;
 }> {
+  const repository = input.repository?.trim();
   const db = getDb();
   if (!db) {
-    return { runs: demoPipelineRuns, source: "demo" };
+    return {
+      runs: repository
+        ? demoPipelineRuns.filter((run) => run.repository === repository)
+        : demoPipelineRuns,
+      source: "demo",
+    };
   }
 
   try {
-    const rows = await db
+    let query = db
       .select()
       .from(pipelineRuns)
-      .orderBy(desc(pipelineRuns.startedAt))
-      .limit(50);
+      .$dynamic();
+
+    if (repository) {
+      query = query.where(eq(pipelineRuns.repository, repository));
+    }
+
+    const rows = await query.orderBy(desc(pipelineRuns.startedAt)).limit(50);
 
     return {
-      runs: rows.length ? rows.map(serializeRun) : demoPipelineRuns,
-      source: rows.length ? "postgres" : "demo",
+      runs: rows.length
+        ? rows.map(serializeRun)
+        : repository
+          ? []
+          : demoPipelineRuns,
+      source: rows.length || repository ? "postgres" : "demo",
     };
   } catch (error) {
     console.error("Unable to load pipeline runs; using demo data.", error);

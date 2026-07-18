@@ -231,13 +231,70 @@ function PipelineMap({ failureCount }: { failureCount: number }) {
   );
 }
 
+function repositoryRoute(repository: string) {
+  const [owner, repo] = repository.split("/");
+  if (!owner || !repo) return "/";
+  return `/r/${encodeURIComponent(owner)}/${encodeURIComponent(repo)}`;
+}
+
+function RepositoryPicker({
+  activeRepository,
+  onRepositoryChange,
+  repositories,
+}: {
+  activeRepository: string;
+  onRepositoryChange: (repository: string) => void;
+  repositories: string[];
+}) {
+  return (
+    <section
+      className={styles.repositoryPicker}
+      aria-labelledby="repository-picker-heading"
+    >
+      <div>
+        <p className={styles.kicker}>Repository picker</p>
+        <h2 id="repository-picker-heading">Choose a repository to monitor.</h2>
+        <p>
+          Keep one deployment connected to several personal repositories, then
+          scope the dashboard before opening the GitHub workflow evidence.
+        </p>
+      </div>
+      <div className={styles.repositoryList} aria-label="Repository views">
+        <button
+          type="button"
+          aria-pressed={activeRepository === "all"}
+          onClick={() => onRepositoryChange("all")}
+        >
+          <span>All repositories</span>
+          <small>{repositories.length} connected</small>
+        </button>
+        {repositories.map((repository) => (
+          <div className={styles.repositoryOption} key={repository}>
+            <button
+              type="button"
+              aria-pressed={activeRepository === repository}
+              onClick={() => onRepositoryChange(repository)}
+            >
+              <span>{repository}</span>
+              <small>Filter dashboard</small>
+            </button>
+            <Link href={repositoryRoute(repository)}>Open route</Link>
+          </div>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 function PipelineLedger({
   filter,
   onFilterChange,
+  repositoryLabel,
   runs,
 }: {
   filter: Filter;
   onFilterChange: (value: Filter) => void;
+  repositoryLabel?: string;
   runs: PipelineRun[];
 }) {
   const filters: { label: string; value: Filter }[] = [
@@ -257,7 +314,11 @@ function PipelineLedger({
         <div>
           <p className={styles.kicker}>Process ledger</p>
           <h2 id="ledger-heading">Recent pipeline runs</h2>
-          <p>Select a view, then open the verified GitHub workflow for evidence.</p>
+          <p>
+            {repositoryLabel
+              ? `Showing verified workflow runs for ${repositoryLabel}.`
+              : "Select a view, then open the verified GitHub workflow for evidence."}
+          </p>
         </div>
         <div className={styles.filters} aria-label="Filter pipeline runs">
           {filters.map((item) => (
@@ -310,7 +371,11 @@ function PipelineLedger({
         {runs.length === 0 && (
           <div className={styles.emptyState}>
             <Activity aria-hidden="true" />
-            <p>No runs match this view.</p>
+            <p>
+              {repositoryLabel
+                ? `No ${filter === "all" ? "" : `${filter} `}runs are available for ${repositoryLabel} yet.`
+                : "No runs match this view."}
+            </p>
           </div>
         )}
       </div>
@@ -358,33 +423,65 @@ export function DesignPreviewDashboard({
   concept,
   initialRuns,
   previewMode = true,
+  repositoryLabel,
   source,
 }: {
   concept: DesignConcept;
   initialRuns: PipelineRun[];
   previewMode?: boolean;
+  repositoryLabel?: string;
   source: DashboardSource;
 }) {
   const [runs, setRuns] = useState(initialRuns);
   const [filter, setFilter] = useState<Filter>("all");
+  const [selectedRepository, setSelectedRepository] = useState(
+    repositoryLabel ?? "all",
+  );
   const details = conceptDetails[concept];
+
+  const repositories = useMemo(
+    () =>
+      Array.from(
+        new Set([
+          ...runs.map((run) => run.repository),
+          ...(repositoryLabel ? [repositoryLabel] : []),
+        ]),
+      ).sort(),
+    [repositoryLabel, runs],
+  );
+
+  const scopedRuns = useMemo(
+    () =>
+      selectedRepository === "all"
+        ? runs
+        : runs.filter((run) => run.repository === selectedRepository),
+    [runs, selectedRepository],
+  );
+
+  const activeRepositoryLabel =
+    selectedRepository === "all" ? undefined : selectedRepository;
 
   const counts = useMemo(
     () => ({
-      success: runs.filter((run) => run.status === "success").length,
-      failure: runs.filter((run) => run.status === "failure").length,
-      running: runs.filter((run) => run.status === "running").length,
-      cancelled: runs.filter((run) => run.status === "cancelled").length,
+      success: scopedRuns.filter((run) => run.status === "success").length,
+      failure: scopedRuns.filter((run) => run.status === "failure").length,
+      running: scopedRuns.filter((run) => run.status === "running").length,
+      cancelled: scopedRuns.filter((run) => run.status === "cancelled").length,
     }),
-    [runs],
+    [scopedRuns],
   );
 
   const filteredRuns = useMemo(
-    () => runs.filter((run) => filter === "all" || run.status === filter),
-    [filter, runs],
+    () => scopedRuns.filter((run) => filter === "all" || run.status === filter),
+    [filter, scopedRuns],
   );
 
-  const latestFailure = runs.find((run) => run.status === "failure");
+  const latestFailure = scopedRuns.find((run) => run.status === "failure");
+
+  function selectRepository(repository: string) {
+    setSelectedRepository(repository);
+    setFilter("all");
+  }
 
   function replayFailure() {
     const template = latestFailure;
@@ -438,7 +535,7 @@ export function DesignPreviewDashboard({
             <span aria-hidden="true" />
             <div>
               <strong>{source === "postgres" ? "Live feed" : "Demo feed"}</strong>
-              <small>Pipeline truth online</small>
+              <small>{activeRepositoryLabel ?? "Pipeline truth online"}</small>
             </div>
           </div>
         </header>
@@ -457,7 +554,7 @@ export function DesignPreviewDashboard({
               </button>
               <span>
                 <ShieldCheck aria-hidden="true" />
-                Deterministic state
+                {activeRepositoryLabel ? "Repository scoped" : "Pick a repository"}
               </span>
             </div>
           </div>
@@ -470,6 +567,12 @@ export function DesignPreviewDashboard({
             <div className={styles.heroPipeRight} />
           </div>
         </section>
+
+        <RepositoryPicker
+          activeRepository={selectedRepository}
+          onRepositoryChange={selectRepository}
+          repositories={repositories}
+        />
 
         <section className={styles.summaryGrid} aria-label="Pipeline summary">
           <SummaryCard
@@ -500,6 +603,7 @@ export function DesignPreviewDashboard({
           <PipelineLedger
             filter={filter}
             onFilterChange={setFilter}
+            repositoryLabel={activeRepositoryLabel}
             runs={filteredRuns}
           />
           <DiagnosisPanel run={latestFailure} />
