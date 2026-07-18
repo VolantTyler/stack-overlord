@@ -178,6 +178,8 @@
 .conceptLink:focus-visible,
 .filters button:focus-visible,
 .heroActions button:focus-visible,
+.repositoryList button:focus-visible,
+.repositoryOption a:focus-visible,
 .openRun:focus-visible {
   outline: 3px solid var(--accent-2);
   outline-offset: 3px;
@@ -391,6 +393,7 @@
   color: var(--cancelled);
 }
 
+.repositoryPicker,
 .pipelineSection,
 .ledger,
 .diagnosis {
@@ -398,6 +401,94 @@
   padding: clamp(22px, 3vw, 36px);
   border: 1px solid var(--line);
   background: var(--surface);
+}
+
+.repositoryPicker {
+  display: grid;
+  grid-template-columns: minmax(220px, 0.75fr) minmax(0, 1.25fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.repositoryPicker h2 {
+  margin: 8px 0 0;
+  font-size: clamp(20px, 2vw, 28px);
+  letter-spacing: -0.035em;
+}
+
+.repositoryPicker p:not(.kicker) {
+  max-width: 560px;
+  margin: 8px 0 0;
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1.5;
+}
+
+.repositoryList {
+  display: grid;
+  gap: 8px;
+}
+
+.repositoryList > button,
+.repositoryOption {
+  min-width: 0;
+}
+
+.repositoryList button {
+  width: 100%;
+  min-height: 56px;
+  padding: 12px;
+  color: var(--ink);
+  border: 1px solid var(--line);
+  background: var(--surface-strong);
+  cursor: pointer;
+  text-align: left;
+}
+
+.repositoryList button[aria-pressed="true"] {
+  color: var(--canvas);
+  background: var(--accent);
+}
+
+.repositoryList button span,
+.repositoryList button small,
+.repositoryOption a {
+  display: block;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.repositoryList button span {
+  font-size: 12px;
+  font-weight: 900;
+}
+
+.repositoryList button small {
+  margin-top: 6px;
+  color: currentColor;
+  font: 800 9px/1 var(--font-geist-mono), monospace;
+  letter-spacing: 0.08em;
+  opacity: 0.75;
+  text-transform: uppercase;
+}
+
+.repositoryOption {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 8px;
+}
+
+.repositoryOption a {
+  align-self: stretch;
+  padding: 19px 12px 0;
+  color: var(--accent);
+  border: 1px solid var(--line);
+  background: var(--canvas);
+  font: 800 9px/1 var(--font-geist-mono), monospace;
+  letter-spacing: 0.06em;
+  text-decoration: none;
+  text-transform: uppercase;
 }
 
 .sectionHeading,
@@ -830,11 +921,14 @@
 .concept_a .conceptLink > span,
 .concept_a .hero,
 .concept_a .summaryCard,
+.concept_a .repositoryPicker,
 .concept_a .pipelineSection,
 .concept_a .ledger,
 .concept_a .diagnosis,
 .concept_a .stage,
 .concept_a .filters,
+.concept_a .repositoryList button,
+.concept_a .repositoryOption a,
 .concept_a .openRun {
   border-width: 3px;
 }
@@ -843,6 +937,7 @@
 .concept_a .conceptNav,
 .concept_a .hero,
 .concept_a .summaryCard,
+.concept_a .repositoryPicker,
 .concept_a .pipelineSection,
 .concept_a .ledger,
 .concept_a .diagnosis {
@@ -1673,6 +1768,10 @@
     grid-template-columns: 1fr;
   }
 
+  .repositoryPicker {
+    grid-template-columns: 1fr;
+  }
+
   .heroGraphic {
     min-height: 170px;
   }
@@ -1739,6 +1838,15 @@
     flex: 1;
     min-width: 0;
     justify-content: center;
+  }
+
+  .repositoryOption {
+    grid-template-columns: 1fr;
+  }
+
+  .repositoryOption a {
+    min-height: 42px;
+    padding: 14px 12px 0;
   }
 
   .conceptLink small {
