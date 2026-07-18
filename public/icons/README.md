@@ -8,4 +8,4 @@ This directory keeps the labeled source exports for the vintage pixel-art icon s
 | Tab icon | `tab-icon.svg` | `tab-icon.png` | `S` inside a pipe flange. |
 | Favicon | `favicon.svg` | `favicon.png` | Piranha plant blockage with `SO` block. |
 
-Next.js consumes the production app icons from `src/app/icon.png`, `src/app/apple-icon.png`, and `src/app/favicon.ico`.
+The request-time icon routes serve the production app icons by default and grayscale runtime variants on `localhost`, `127.0.0.1`, and `[::1]`. The runtime files live under `public/icons/runtime/production` and `public/icons/runtime/localhost`, respectively.
