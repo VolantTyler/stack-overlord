@@ -12,7 +12,8 @@
     "test:watch": "vitest",
     "demo:webhook": "node scripts/demo-webhook.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "preview:check": "node scripts/verify-browser-preview.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
