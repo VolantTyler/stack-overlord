@@ -892,14 +892,30 @@
   --surface: #fff8db;
   --surface-strong: #fffdf0;
   --ink: #17324a;
-  --muted: #4e6878;
+  --muted: #2c4656;
   --line: #17324a;
   --accent: #41b94d;
   --accent-2: #ffd33d;
-  --success: #168f3d;
-  --failure: #d8403a;
+  --success: #0c6829;
+  --failure: #c93632;
   --running: #9c6500;
-  --cancelled: #697b84;
+  --cancelled: #465a64;
+}
+
+.concept_a .repositoryList button[aria-pressed="true"] {
+  color: var(--ink);
+}
+
+.concept_a .repositoryList button[aria-pressed="true"] small {
+  opacity: 1;
+}
+
+.concept_a .kicker {
+  color: var(--success);
+}
+
+.concept_a .repositoryOption a {
+  color: var(--ink);
 }
 
 .concept_a .visualLayer {
@@ -954,7 +970,7 @@
   color: #fff;
   border: 2px solid var(--line);
   border-radius: 999px;
-  background: #e43e37;
+  background: var(--failure);
 }
 
 .concept_a .conceptNav {
@@ -968,8 +984,8 @@
 }
 
 .concept_a .conceptLink[aria-current="page"] {
-  color: #fff;
-  text-shadow: 0 2px 0 #15702c;
+  color: var(--ink);
+  text-shadow: none;
 }
 
 .concept_a .feed > span {
@@ -1010,16 +1026,16 @@
 }
 
 .concept_a .heroCopy > p:not(.eyebrow) {
-  color: #274c63;
+  color: var(--ink);
   font-weight: 600;
 }
 
 .concept_a .heroActions button {
-  color: #fff;
+  color: var(--ink);
   border: 3px solid #17324a;
   border-radius: 9px;
   box-shadow: 0 5px 0 #17324a;
-  text-shadow: 0 2px 0 #15702c;
+  text-shadow: none;
 }
 
 .concept_a .heroActions button:active {
@@ -1143,13 +1159,13 @@
 }
 
 .concept_a .filters button {
-  color: #33576b;
+  color: var(--ink);
   border-radius: 6px;
 }
 
 .concept_a .filters button[aria-pressed="true"] {
-  color: #fff;
-  text-shadow: 0 1px 0 #15702c;
+  color: var(--ink);
+  text-shadow: none;
 }
 
 .concept_a .status {
