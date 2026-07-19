@@ -1,6 +1,6 @@
 # Guided Build Tool: Checklist
 
-Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
+Last refreshed from Devpost and the live deployment: July 19, 2026.
 
 ## Build gates
 
@@ -29,14 +29,14 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 
 - [x] Complete one-time Vercel account authorization.
 - [x] Create and deploy the Vercel project at `https://stack-overlord.vercel.app`.
-- [ ] Connect the private GitHub repository to Vercel for automatic deployments.
-- [ ] Provision Postgres and set `DATABASE_URL`.
-- [ ] Apply the Drizzle migration.
-- [ ] Add `OPENAI_API_KEY` and verify a real `gpt-5.6` response ID.
+- [x] Connect the public GitHub repository to Vercel for automatic deployments.
+- [x] Provision Postgres and set `DATABASE_URL`.
+- [x] Apply the Drizzle migration.
+- [x] Add `OPENAI_API_KEY` and verify real `gpt-5.6` response IDs.
 - [ ] Verify one local alert in `#stack-overlord-alerts`.
-- [ ] Duplicate Cognitive Bridge into an isolated sandbox repository.
+- [x] Duplicate Cognitive Bridge into an isolated sandbox repository.
 - [ ] Create the sandbox Firebase project and least-privilege service account.
-- [ ] Add the GitHub webhook secret and optional private-repository token.
+- [x] Add the GitHub webhook secret and optional repository token.
 - [ ] Demonstrate one real sandbox success and one controlled failure.
 - [ ] Save sanitized webhook fixtures from those real runs.
 
@@ -73,11 +73,11 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 - [x] Project description draft created.
 - [x] Installation instructions and supported platforms documented.
 - [x] A judge-friendly deterministic test path exists.
-- [ ] Replace the outdated Devpost PRD description.
-- [ ] Add the final public or shared repository URL.
-- [ ] Decide repository visibility; add an open-source license if public.
+- [x] Replace the outdated Devpost PRD description with judge-ready implementation copy.
+- [x] Add the public repository URL.
+- [x] Confirm repository visibility is public.
 - [x] Add the live demo URL to the submission draft.
-- [ ] Finalize judge instructions after live integrations are configured.
+- [x] Add credential-free live demo and judge testing instructions.
 - [ ] Record a public YouTube demo under three minutes.
 - [ ] Voiceover must cover the product, Codex, and GPT-5.6.
 - [ ] Add the `/feedback` Codex Session ID.
