@@ -47,7 +47,7 @@ The sanitizer writes:
 - `demo/fixtures/real-runs/sandbox-deployment-success.json`
 - `demo/fixtures/real-runs/sandbox-deployment-failure.json`
 
-The saved fixtures include the factual `workflow_run.conclusion` from GitHub and remove unnecessary account and repository payload fields.
+The saved fixtures include the factual `workflow_run.conclusion` from GitHub, remove unnecessary account and repository payload fields, and are written only after the helper verifies the run came from the `Sandbox Deployment Demo` workflow path.
 
 ## 5. Replay the fixtures into Stack Overlord
 

@@ -5,6 +5,8 @@ import { basename, dirname, join } from "node:path";
 
 const DEFAULT_REPOSITORY = "VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo";
 const DEFAULT_OUTPUT_DIR = "demo/fixtures/real-runs";
+const EXPECTED_WORKFLOW_NAME = "Sandbox Deployment Demo";
+const EXPECTED_WORKFLOW_PATH = ".github/workflows/sandbox-deployment-demo.yml";
 
 function usage() {
   console.log(`Save a sanitized workflow_run webhook fixture from a real GitHub Actions run.
@@ -16,6 +18,8 @@ Options:
   --repo <owner/name>       Sandbox repository (default: ${DEFAULT_REPOSITORY})
   --output-dir <path>       Fixture directory (default: ${DEFAULT_OUTPUT_DIR})
   --output <path>           Exact output path; overrides --output-dir
+  --workflow-name <name>    Expected workflow name (default: ${EXPECTED_WORKFLOW_NAME})
+  --workflow-path <path>    Expected workflow path (default: ${EXPECTED_WORKFLOW_PATH})
   --help                    Show this help
 
 Authentication:
@@ -58,6 +62,21 @@ function sanitizeRun(run, repository) {
   };
 }
 
+function normalizeWorkflowPath(path) {
+  return typeof path === "string" ? path.replace(/^\.\//, "") : "";
+}
+
+function validateDeploymentWorkflow(run, expectedName, expectedPath) {
+  const actualName = typeof run.name === "string" ? run.name : "";
+  const actualPath = normalizeWorkflowPath(run.path);
+  const normalizedExpectedPath = normalizeWorkflowPath(expectedPath);
+
+  return (
+    actualName === expectedName &&
+    actualPath === normalizedExpectedPath
+  );
+}
+
 const args = process.argv.slice(2);
 if (args.includes("--help") || args.length === 0) {
   usage();
@@ -76,6 +95,8 @@ if (!["success", "failure"].includes(result ?? "")) {
   process.exit(1);
 }
 
+const expectedWorkflowName = option(args, "--workflow-name") ?? EXPECTED_WORKFLOW_NAME;
+const expectedWorkflowPath = option(args, "--workflow-path") ?? EXPECTED_WORKFLOW_PATH;
 const repository = option(args, "--repo") ?? DEFAULT_REPOSITORY;
 const endpoint = `https://api.github.com/repos/${repository}/actions/runs/${runId}`;
 const headers = {
@@ -93,6 +114,13 @@ if (!response.ok) {
 }
 
 const run = await response.json();
+if (!validateDeploymentWorkflow(run, expectedWorkflowName, expectedWorkflowPath)) {
+  console.error(
+    `Run ${runId} is workflow ${run.name ?? "(unknown)"} at ${run.path ?? "(unknown)"}; expected ${expectedWorkflowName} at ${expectedWorkflowPath}.`,
+  );
+  process.exit(1);
+}
+
 if (run.status !== "completed" || run.conclusion !== result) {
   console.error(`Run ${runId} is ${run.status}/${run.conclusion}; expected completed/${result}.`);
   process.exit(1);

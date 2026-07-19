@@ -55,7 +55,7 @@ Trigger the controlled failure path:
 GITHUB_TOKEN=... npm run demo:deployment:force-failure
 ```
 
-After each run completes in GitHub Actions, save sanitized fixtures for replay:
+After each run completes in GitHub Actions, save sanitized fixtures for replay. The fixture helper rejects run ids that do not belong to the `Sandbox Deployment Demo` workflow:
 
 ```bash
 GITHUB_TOKEN=... npm run demo:deployment:fixture -- --run-id <success-run-id> --result success
