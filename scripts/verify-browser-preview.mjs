@@ -1,38 +1,52 @@
-import { spawnSync } from "node:child_process";
+import { access } from "node:fs/promises";
 
-const browserCandidates = [
-  "chromium",
-  "chromium-browser",
-  "google-chrome",
-  "google-chrome-stable",
-  "firefox",
-];
+let chromium;
 
-const foundBrowsers = browserCandidates
-  .map((browser) => {
-    const result = spawnSync("command", ["-v", browser], {
-      encoding: "utf8",
-      shell: true,
-    });
+try {
+  ({ chromium } = await import("@playwright/test"));
+} catch (error) {
+  console.error("Playwright is not installed in this checkout.");
+  console.error("Run `npm ci` before checking remote preview support.");
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exit(1);
+}
 
-    return {
-      browser,
-      path: result.stdout.trim(),
-    };
-  })
-  .filter(({ path }) => path.length > 0);
+const executablePath = chromium.executablePath();
 
-if (foundBrowsers.length === 0) {
+try {
+  await access(executablePath);
+} catch {
+  console.error("Playwright is installed, but its Chromium binary is missing.");
+  console.error(`Expected browser: ${executablePath}`);
   console.error(
-    "No Chromium, Chrome, or Firefox binary was found for remote UI screenshots.",
-  );
-  console.error(
-    "Install a browser binary in the environment image before attempting screenshot capture.",
+    "Run `npm run preview:install` during the network-enabled environment setup phase.",
   );
   process.exit(1);
 }
 
-console.log("Remote preview browser candidates:");
-for (const { browser, path } of foundBrowsers) {
-  console.log(`- ${browser}: ${path}`);
+let browser;
+
+try {
+  browser = await chromium.launch({ headless: true });
+  const page = await browser.newPage();
+  await page.goto("data:text/html,<title>preview-ready</title>");
+
+  if ((await page.title()) !== "preview-ready") {
+    throw new Error("Chromium launched but did not render the smoke-check page.");
+  }
+} catch (error) {
+  console.error("Chromium exists but could not be launched.");
+  console.error(`Browser: ${executablePath}`);
+  console.error(
+    "In Codex cloud, rerun the setup with `playwright install --with-deps chromium`.",
+  );
+  console.error(error instanceof Error ? error.message : String(error));
+  process.exitCode = 1;
+} finally {
+  await browser?.close();
+}
+
+if (process.exitCode !== 1) {
+  console.log("Remote preview browser is ready.");
+  console.log(`- Playwright Chromium: ${executablePath}`);
 }

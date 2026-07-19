@@ -10,10 +10,12 @@
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "test:watch": "vitest",
+    "preview:install": "playwright install --with-deps chromium",
+    "preview:check": "node scripts/verify-browser-preview.mjs",
+    "preview:capture": "playwright test --config=playwright.config.ts",
     "demo:webhook": "node scripts/demo-webhook.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push",
-    "preview:check": "node scripts/verify-browser-preview.mjs"
+    "db:push": "drizzle-kit push"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
@@ -32,6 +34,7 @@
     "zod": "^4.4.3"
   },
   "devDependencies": {
+    "@playwright/test": "1.61.1",
     "@tailwindcss/postcss": "^4",
     "@types/node": "^20",
     "@types/react": "^19",

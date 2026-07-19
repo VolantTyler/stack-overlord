@@ -11,4 +11,5 @@ This version has breaking changes — APIs, conventions, and file structure may 
 - Keep database, OpenAI, GitHub, and Discord clients lazily initialized so `npm run build` works without environment variables.
 - Use the isolated Cognitive Bridge sandbox repository for failure demos. Never change or target the original production repository or Firebase project.
 - Keep the dashboard responsive and ensure status is communicated with text and icons, not color alone.
+- For UI work, run `npm run preview:check` and `npm run preview:capture`; review both screenshots under `artifacts/remote-preview/`.
 - Required verification: `npm run lint`, `npm run typecheck`, `npm test`, and `npm run build`.
