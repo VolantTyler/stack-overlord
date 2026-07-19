@@ -38,6 +38,32 @@ For a presenter-ready tour of every dashboard state, signed webhook replays,
 security checks, idempotency, optional integrations, and reset instructions, see
 the [demo walkthrough](docs/demo-walkthrough.md).
 
+
+## Sandbox deployment demonstrations
+
+Use the isolated Cognitive Bridge sandbox repository for live deployment demos; never run controlled failures against the production repository or Firebase project. The sandbox workflow and helpers produce one factual deployment success and one controlled deployment failure, then save sanitized `workflow_run` webhook fixtures from those real GitHub Actions runs.
+
+Trigger the success path:
+
+```bash
+GITHUB_TOKEN=... npm run demo:deployment:force-success
+```
+
+Trigger the controlled failure path:
+
+```bash
+GITHUB_TOKEN=... npm run demo:deployment:force-failure
+```
+
+After each run completes in GitHub Actions, save sanitized fixtures for replay. The fixture helper rejects run ids that do not belong to the `Sandbox Deployment Demo` workflow:
+
+```bash
+GITHUB_TOKEN=... npm run demo:deployment:fixture -- --run-id <success-run-id> --result success
+GITHUB_TOKEN=... npm run demo:deployment:fixture -- --run-id <failure-run-id> --result failure
+```
+
+See the [sandbox deployment result runbook](docs/demo/deployment-results.md) and the [demo walkthrough](docs/demo-walkthrough.md) for the full human/AI operator flow, including replaying the saved fixtures into Stack Overlord.
+
 ## Environment variables
 
 | Variable | Purpose | Required for demo UI |

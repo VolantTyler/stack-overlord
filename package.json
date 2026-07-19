@@ -15,7 +15,11 @@
     "preview:capture": "playwright test --config=playwright.config.ts",
     "demo:webhook": "node scripts/demo-webhook.mjs",
     "db:generate": "drizzle-kit generate",
-    "db:push": "drizzle-kit push"
+    "db:push": "drizzle-kit push",
+    "demo:deployment:trigger": "node scripts/trigger-sandbox-deployment-demo.mjs",
+    "demo:deployment:force-success": "node scripts/trigger-sandbox-deployment-demo.mjs --result success",
+    "demo:deployment:force-failure": "node scripts/trigger-sandbox-deployment-demo.mjs --result failure",
+    "demo:deployment:fixture": "node scripts/save-sanitized-webhook-fixture.mjs"
   },
   "dependencies": {
     "@neondatabase/serverless": "^1.1.0",
