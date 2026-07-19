@@ -32,7 +32,7 @@ cp .env.example .env.local
 npm run dev
 ```
 
-Open [http://localhost:3000](http://localhost:3000). Without environment variables, the dashboard loads deterministic Cognitive Bridge sandbox fixtures and exposes a **Replay failure** control.
+Open [http://localhost:3000](http://localhost:3000). Without environment variables, the dashboard loads deterministic Cognitive Bridge sandbox fixtures and exposes a **Replay sandbox failure** control.
 
 For a presenter-ready tour of every dashboard state, signed webhook replays,
 security checks, idempotency, optional integrations, and reset instructions, see
@@ -121,7 +121,7 @@ The Devpost Guided Build Tool is reflected in a small set of canonical project d
 - [Build and submission checklist](docs/hackathon/build-checklist.md)
 - [Devpost copy and demo outline](docs/hackathon/submission-draft.md)
 
-The checklist is the source of truth for remaining submission work. The Devpost project should stay in draft until its stale description is replaced and the live URL, public video, repository details, and Codex `/feedback` session ID are ready.
+The checklist is the source of truth for remaining submission work. The Devpost project should stay in draft until the public under-three-minute YouTube video and Codex `/feedback` session ID are added. The judge-ready description, live URL, public repository, and credential-free testing instructions are prepared.
 
 ## Safe demo target
 

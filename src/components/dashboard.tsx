@@ -37,6 +37,7 @@ import {
 import {
   Table,
   TableBody,
+  TableCaption,
   TableCell,
   TableHead,
   TableHeader,
@@ -90,7 +91,11 @@ function StatusBadge({ status }: { status: PipelineStatus }) {
   const Icon = detail.icon;
 
   return (
-    <Badge variant="outline" className={cn("gap-1.5", detail.badge)}>
+    <Badge
+      variant="outline"
+      className={cn("gap-1.5", detail.badge)}
+      aria-label={`Status: ${detail.label}`}
+    >
       <Icon className="size-3.5" aria-hidden="true" />
       {detail.label}
     </Badge>
@@ -360,6 +365,7 @@ export function Dashboard({
         <div className="flex items-center gap-3">
           <div className="flex items-center gap-2 rounded-full border bg-card/60 px-3 py-2 text-xs text-muted-foreground">
             <span
+              aria-hidden="true"
               className={cn(
                 "size-2 rounded-full",
                 source === "postgres" ? "bg-emerald-400" : "bg-amber-300",
@@ -368,7 +374,11 @@ export function Dashboard({
             {source === "postgres" ? "Live Postgres feed" : "Deterministic demo feed"}
           </div>
           {source !== "postgres" && (
-            <Button size="sm" onClick={replayFailure}>
+            <Button
+              size="sm"
+              onClick={replayFailure}
+              aria-label="Replay a deterministic sandbox failure demo"
+            >
               <RotateCcw className="size-4" aria-hidden="true" />
               Replay failure
             </Button>
@@ -433,20 +443,33 @@ export function Dashboard({
             </CardDescription>
           </div>
           <Tabs
+            aria-label="Filter pipeline ledger by status"
             value={filter}
             onValueChange={(value) => setFilter(value as typeof filter)}
           >
             <TabsList className="grid w-full grid-cols-4 sm:w-auto">
-              <TabsTrigger value="all">All</TabsTrigger>
-              <TabsTrigger value="failure">Failed</TabsTrigger>
-              <TabsTrigger value="running">Running</TabsTrigger>
-              <TabsTrigger value="success">Passed</TabsTrigger>
+              <TabsTrigger value="all" aria-label="Show all pipeline runs">
+                All
+              </TabsTrigger>
+              <TabsTrigger value="failure" aria-label="Show failed pipeline runs">
+                Failed
+              </TabsTrigger>
+              <TabsTrigger value="running" aria-label="Show running pipeline runs">
+                Running
+              </TabsTrigger>
+              <TabsTrigger value="success" aria-label="Show passed pipeline runs">
+                Passed
+              </TabsTrigger>
             </TabsList>
           </Tabs>
         </CardHeader>
         <CardContent className="p-0">
           <div className="hidden md:block">
             <Table>
+              <TableCaption className="sr-only">
+                Pipeline runs with status, workflow, source branch, commit, start
+                time, duration, and available actions
+              </TableCaption>
               <TableHeader>
                 <TableRow className="border-white/8 hover:bg-transparent">
                   <TableHead>Status</TableHead>
@@ -498,14 +521,20 @@ export function Dashboard({
                           variant="outline"
                           size="sm"
                           onClick={() => setSelectedRun(run)}
+                          aria-label={`Open diagnosis and recovery details for ${run.workflowName} on ${run.repository}`}
                           className="border-red-400/20 text-red-200 hover:bg-red-400/10 hover:text-red-100"
                         >
                           Diagnose
                         </Button>
                       ) : (
                         <Button variant="ghost" size="icon-sm" asChild>
-                          <a href={run.runUrl} target="_blank" rel="noreferrer">
-                            <ExternalLink className="size-4" />
+                          <a
+                            href={run.runUrl}
+                            target="_blank"
+                            rel="noreferrer"
+                            aria-label={`Open ${run.workflowName} workflow on GitHub`}
+                          >
+                            <ExternalLink className="size-4" aria-hidden="true" />
                             <span className="sr-only">Open workflow</span>
                           </a>
                         </Button>
@@ -546,6 +575,7 @@ export function Dashboard({
                     variant="outline"
                     className="w-full border-red-400/20 text-red-200 hover:bg-red-400/10 hover:text-red-100"
                     onClick={() => setSelectedRun(run)}
+                    aria-label={`Open diagnosis and recovery details for ${run.workflowName} on ${run.repository}`}
                   >
                     View diagnosis and recovery
                   </Button>

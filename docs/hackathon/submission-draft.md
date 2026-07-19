@@ -1,93 +1,130 @@
-# Guided Build Tool: Prepare Submission
+# OpenAI Build Week Devpost draft
 
-## Title
+## Public project fields
 
-Stack Overlord
+**Title:** Stack Overlord
 
-## Tagline
+**Tagline:** Know when the merge shipped—and what to do when it did not.
 
-Know when the merge shipped—and what to do when it did not.
+**Category:** Developer Tools
 
-## Category
+**Live demo:** https://stack-overlord.vercel.app
 
-Developer Tools
+**Public repository:** https://github.com/VolantTyler/stack-overlord
 
-## Live demo
+## Project story
 
-https://stack-overlord.vercel.app
+### Inspiration
 
-## Inspiration
+A merged pull request feels finished, but the deployment that follows can still fail after the developer has changed context. Agentic development makes that gap easier to miss: work moves faster across repositories and cloud services, while the final delivery state remains scattered across GitHub tabs and notifications.
 
-Agentic development makes it possible to move quickly across code, pull requests, and deployments. It also makes it easier to drop a thread. A merge can succeed while the deployment silently fails, and the developer may not notice until production is stale. Stack Overlord was inspired by that cognitive gap: developers need a trustworthy final answer about whether their change actually shipped.
+Stack Overlord gives developers one trustworthy answer to two questions: **Did it ship? If not, what should I do next?**
 
-## Before and after
+### What it does
 
-**Before:** A developer merges a change, sees GitHub accept it, switches tasks, and later discovers that a failed deployment left production stale. **After:** Stack Overlord preserves GitHub's verified workflow result, brings the developer back with a focused alert, and turns the available failure evidence into prioritized recovery steps that each include a way to verify the fix.
+Stack Overlord is a commit-to-deployment command center for GitHub Actions:
 
-## What it does
+- It verifies signed GitHub webhooks, deduplicates deliveries, and records workflow state in a durable Postgres ledger.
+- GitHub's workflow conclusion sets the factual status. GPT-5.6 explains verified failures but can never change that status.
+- For a failure, Stack Overlord collects available GitHub job and failed-step evidence and requests a structured GPT-5.6 diagnosis with evidence, confidence, limitations, and prioritized recovery actions.
+- The responsive dashboard filters runs by repository and status, links every incident back to its GitHub workflow, and keeps the model's explanation visually separate from the verified failure.
+- A Slack Block Kit alert can return the developer to the incident after telemetry has already been safely stored.
 
-Stack Overlord receives signed GitHub webhooks and records the factual state of each workflow in a durable Postgres ledger. Its responsive dashboard shows running, successful, failed, and cancelled processes across desktop and mobile. Failed processes open into an evidence-backed GPT-5.6 diagnosis containing the likely cause, confidence, limitations, and prioritized recovery actions with verification steps. Slack alerts pull the developer back before the failure is forgotten.
+The hosted demo shows real failures from an isolated public sandbox repository and recorded GPT-5.6 diagnoses. Its **Replay sandbox failure** control also adds a deterministic, browser-only incident so judges have a reliable test path without credentials.
 
-## What makes it different
+### What makes it different
 
-CI dashboards and chat notifications usually report that a job failed; general-purpose AI assistants can suggest fixes after a developer supplies context. Stack Overlord closes the gap between those experiences without asking AI to decide what happened: signed GitHub events remain the source of truth, accepted telemetry is stored before any optional enrichment, and GPT-5.6 explains only an already-verified failure using the available job and step evidence. The result is a durable post-merge ledger plus confidence-aware guidance, explicit limitations, and testable recovery steps—not another model-generated status summary.
+CI dashboards report that a job failed, while general-purpose AI assistants can suggest fixes after a developer supplies the context. Stack Overlord closes that gap without asking AI to decide what happened: the signed GitHub event is stored first as pipeline truth, and GPT-5.6 only interprets the available evidence. The result is a durable delivery ledger plus a focused recovery move—not a model-generated status summary.
 
-## How we built it
+### How we built it
 
-The application is a Next.js and TypeScript system deployed on Vercel. Route handlers verify GitHub HMAC signatures and normalize workflow runs. Drizzle ORM writes raw deliveries and pipeline state to Postgres. For failed runs, Stack Overlord retrieves GitHub job and failed-step evidence, then calls GPT-5.6 through the OpenAI Responses API with a strict structured-output schema. The diagnosis is stored and rendered in an accessible shadcn/ui dashboard, and the same incident can produce a concise Slack Block Kit alert.
+Stack Overlord is a Next.js 16, React 19, and TypeScript application deployed on Vercel. Drizzle ORM stores raw webhook deliveries and normalized runs in Neon Postgres. The webhook route verifies GitHub HMAC signatures before parsing, persists accepted telemetry before optional work, and then enriches verified failures with GitHub Actions evidence. GPT-5.6 is called through the OpenAI Responses API with a strict structured-output schema. Slack notification, database, GitHub, and OpenAI clients are initialized lazily so missing optional credentials do not break the build or the deterministic demo.
 
-## How Codex was used
+Codex accelerated the core build: it translated the product boundary into the architecture, schema, signed-webhook contract, evidence enrichment, GPT-5.6 output schema, Slack integration, responsive repository dashboard, deterministic fixtures, and regression tests. It also drove the lint, type-check, test, production-build, and desktop/mobile browser-verification loop. Key decisions—GitHub owns truth, persistence happens first, and AI remains an optional interpretation layer—are reflected in both the code and the interface.
 
-Codex translated the reviewed PRD into the architecture, responsive dashboard, webhook contract, Postgres schema, deterministic fixtures, GPT-5.6 output schema, and automated tests. It ran the lint/typecheck/test/build loop, caught and fixed a long-credential overflow during visual inspection, and browser-verified the desktop and 390-pixel mobile experiences. The final submission will include the `/feedback` Session ID for the core build task.
+### Challenges we ran into
 
-## How GPT-5.6 was used
+- Preserving a verified failure even when GitHub enrichment, OpenAI, or Slack is unavailable.
+- Giving GPT-5.6 enough evidence to help without letting a plausible explanation become invented pipeline truth.
+- Providing a real end-to-end demo without targeting the original Cognitive Bridge production repository or Firebase project.
+- Keeping repository, workflow, commit, timing, and recovery detail readable on desktop and mobile.
 
-GPT-5.6 is part of the finished product, not the source of pipeline truth. GitHub determines whether a workflow passed or failed. GPT-5.6 receives the already-verified failed run and available job/step evidence, then returns a structured diagnosis with explicit uncertainty and verifiable recovery recommendations. The dashboard records the model and response ID for traceability.
+### Accomplishments that we are proud of
 
-## Challenges
+- A working path from signed GitHub event to Postgres persistence, GPT-5.6 diagnosis, Slack notification, and responsive UI.
+- Real sandbox failures and traceable GPT-5.6 response IDs in the hosted deployment.
+- Idempotent webhook handling and persistence-first failure behavior.
+- A no-login replay path that judges can test without rebuilding or configuring the project.
+- Status communicated with text and icons, not color alone.
 
-- Keeping optional AI and notification work from causing telemetry loss.
-- Making diagnosis useful without allowing the model to invent status or certainty.
-- Providing a reliable demo while still exercising authentic GitHub and Firebase infrastructure.
-- Preserving enough technical detail on mobile without overwhelming the developer.
+### What we learned
 
-## Accomplishments
+The most valuable AI boundary was also the simplest: deterministic systems should state what happened; the model should explain what the evidence might mean. GPT-5.6 becomes more useful and more credible when confidence, limitations, and verification steps are part of the contract rather than optional prose.
 
-- The deterministic event ledger survives optional downstream failures.
-- The same failure experience works coherently on desktop, mobile, and Slack.
-- Replay mode gives judges a predictable test path while remaining clearly labeled.
-- Every model recommendation is paired with a verification step.
+### What is next
 
-## What we learned
+- Correlate pull requests, merge commits, deployments, and live endpoint health in one timeline.
+- Add deeper log and artifact retrieval for higher-confidence diagnoses.
+- Add repository-specific runbooks, notification policies, and incident history.
+- Offer explicitly approved remediation workflows while keeping factual state outside the model's control.
 
-The most useful boundary was separating machine-verifiable pipeline truth from model-generated interpretation. GPT-5.6 becomes more credible when the interface clearly labels evidence, confidence, and limitations instead of presenting one undifferentiated answer.
+## Devpost additional-info answers
 
-## What is next
+### Code repository
 
-- Correlate pull request checks, merge commits, deployment runs, and live endpoint health.
-- Add repository-specific runbooks and historical incident similarity.
-- Support multiple repositories and notification policies.
-- Offer optional, explicitly approved remediation workflows.
+https://github.com/VolantTyler/stack-overlord
 
-## Judge testing instructions
+### Live demo and judge testing instructions
 
-No account or credentials are required for the deterministic judging path:
+No account, credentials, or rebuild is required.
 
-1. Open https://stack-overlord.vercel.app and confirm the dashboard labels its fixture-backed state.
-2. Select **Replay failure**.
-3. Open the failed process and confirm that its GitHub-derived status is distinct from the GPT-5.6 explanation.
-4. Review the cited job and failed-step evidence, confidence, and limitations.
-5. Expand the prioritized recommendations and check that each includes a concrete verification step.
-6. Narrow the browser or open the same incident on a phone to verify the responsive experience.
+1. Open https://stack-overlord.vercel.app.
+2. Confirm the page is labeled **Live feed** and review the real failed workflows from `VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo`.
+3. In **One event. Four factual handoffs**, note that the GitHub conclusion is accepted and telemetry is stored before diagnosis and notification.
+4. In **Recent pipeline runs**, use **Open** to inspect the corresponding public GitHub Actions run.
+5. Compare the verified failure with **Latest failure diagnosis**. The GPT-5.6 summary and recovery move are visually separated from the GitHub-owned conclusion.
+6. Select **Replay sandbox failure**. The failure count increases and a deterministic replay appears at the top of the ledger; this changes browser state only.
+7. Use the repository picker and status filters, then narrow the browser to a mobile width to verify the responsive experience.
 
-If live integrations have been configured and verified before judging, the presenter can additionally demonstrate one success and one controlled failure from the isolated Cognitive Bridge sandbox. The deterministic path above remains the reliable fallback and never targets the original production repository or Firebase project.
+### Developer-tool installation, platforms, and local testing
 
-## Demo video outline — under three minutes
+**Fastest path:** use the hosted demo above in any current desktop or mobile Chrome, Safari, Firefox, or Edge browser.
 
-1. **0:00–0:20 — Problem:** A merge succeeds, the Firebase deployment fails, and the developer changes context.
-2. **0:20–0:50 — Pipeline truth:** Show a successful sandbox run and the Stack Overlord ledger.
-3. **0:50–1:25 — Failure:** Trigger the controlled failure and show the dashboard plus Slack alert.
-4. **1:25–2:05 — GPT-5.6:** Open the failure and explain evidence, confidence, limitations, and recovery verification.
-5. **2:05–2:25 — Mobile:** Open the same incident at a mobile width.
-6. **2:25–2:50 — Codex:** Show the core Codex task, tests, browser verification, and `/feedback` ID.
-7. **2:50–3:00 — Close:** The merge is not the finish line; Stack Overlord verifies what actually shipped.
+**Local requirements:** Node.js 20.9 or newer and npm on macOS, Linux, or Windows.
+
+```bash
+git clone https://github.com/VolantTyler/stack-overlord.git
+cd stack-overlord
+npm install
+npm run dev
+```
+
+Open http://localhost:3000. With no environment variables, Stack Overlord loads deterministic sandbox fixtures and the replay control. Optional live integrations use `DATABASE_URL`, `OPENAI_API_KEY`, `GITHUB_WEBHOOK_SECRET`, `GITHUB_TOKEN`, and `SLACK_WEBHOOK_URL`; setup and signed-replay instructions are in the repository README and `docs/demo-walkthrough.md`.
+
+Verification commands:
+
+```bash
+npm run lint
+npm run typecheck
+npm test
+npm run build
+```
+
+## Remaining user-only inputs
+
+- [ ] A public YouTube demo URL for a video shorter than three minutes.
+- [ ] The Codex `/feedback` Session ID from the session where the majority of the core functionality was built.
+
+Keep the Devpost entry in draft and do not submit until both values are present.
+
+## Demo video outline — target 2:55
+
+1. **0:00–0:18 — The invisible break:** A pull request merges, a later deployment fails, and the developer has already switched tasks.
+2. **0:18–0:38 — The answer:** Open the hosted Stack Overlord dashboard and frame the before/after: one place to see whether the change shipped and what to do next.
+3. **0:38–1:05 — Pipeline truth:** Show the live route map and real sandbox failure. Explain that GitHub sets the status and Postgres stores it before optional work.
+4. **1:05–1:30 — Evidence:** Open the linked public GitHub Actions run, then return to the ledger and repository filters.
+5. **1:30–1:58 — GPT-5.6:** Show the latest diagnosis and recovery move. Explain the structured evidence, confidence, limitations, and verification contract, and state that the model never determines pipeline status.
+6. **1:58–2:15 — Reliable judge path:** Select **Replay sandbox failure** and show the new browser-only incident.
+7. **2:15–2:35 — Codex:** Briefly show the repository history and verification commands; explain that Codex built and iterated on the architecture, integrations, tests, and responsive interface.
+8. **2:35–2:48 — Mobile and Slack:** Show the mobile layout and, if a verified alert is available for recording, the matching Slack notification.
+9. **2:48–2:55 — Close:** “The merge is not the finish line. Stack Overlord tells you what actually shipped.”
