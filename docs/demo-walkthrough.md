@@ -60,9 +60,9 @@ npm run demo:webhook -- cancelled
 npm run demo:webhook -- failure
 ```
 
-The `push` event demonstrates correlation telemetry: it is accepted and persisted, but does not invent a workflow row. The remaining events demonstrate GitHub-derived running, successful, cancelled, and failed states. Failure telemetry is saved before optional GitHub evidence collection, GPT-5.6 diagnosis, or Discord notification.
+The `push` event demonstrates correlation telemetry: it is accepted and persisted, but does not invent a workflow row. The remaining events demonstrate GitHub-derived running, successful, cancelled, and failed states. Failure telemetry is saved before optional GitHub evidence collection, GPT-5.6 diagnosis, or Slack notification.
 
-Without `OPENAI_API_KEY`, the failed run remains visible with **Diagnosis pending**. Add a valid key and optionally `GITHUB_TOKEN` to demonstrate live structured diagnosis and job-step evidence. Add `DISCORD_WEBHOOK_URL` to demonstrate the failure alert. These integrations are optional and lazily initialized.
+Without `OPENAI_API_KEY`, the failed run remains visible with **Diagnosis pending**. Add a valid key and optionally `GITHUB_TOKEN` to demonstrate live structured diagnosis and job-step evidence. Add `SLACK_WEBHOOK_URL` for an incoming webhook configured for `#stack-overlord-alerts` to demonstrate the Block Kit failure alert. Every verified failure is reported without mentions. These integrations are optional and lazily initialized.
 
 ### 4. Demonstrate security and idempotency
 
@@ -93,7 +93,7 @@ npm run demo:webhook -- failure --dry-run
 | `running` | `200`, status `running` | Running preview row | None |
 | `success` | `200`, status `success` | Successful release row | None |
 | `cancelled` | `200`, status `cancelled` | Cancelled preview row | None |
-| `failure` | `200`, status `failure` | Failed row and diagnosis panel | Evidence, GPT-5.6, and Discord when configured |
+| `failure` | `200`, status `failure` | Failed row and diagnosis panel | Evidence, GPT-5.6, and Slack when configured |
 | Any scenario with `--invalid-signature` | `401` | No change | None |
 
 ## Remote sandbox use

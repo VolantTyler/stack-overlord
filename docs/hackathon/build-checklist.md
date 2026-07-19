@@ -7,14 +7,14 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 - [x] New project work started during the submission period.
 - [x] Developer Tools category selected.
 - [x] Codex and GPT-5.6 roles are separate and explicit.
-- [x] Next.js, Postgres, Vercel, and Discord architecture locked.
+- [x] Next.js, Postgres, Vercel, and Slack architecture locked.
 - [x] Google Sheets removed.
 - [x] Signed GitHub webhook route implemented.
 - [x] Delivery deduplication schema implemented.
 - [x] Deterministic pipeline state mapping implemented.
 - [x] GPT-5.6 structured diagnosis contract implemented.
 - [x] GitHub failed job/step evidence enrichment implemented.
-- [x] Discord failure notification implemented.
+- [x] Slack-native failure notification implemented.
 - [x] Responsive desktop and mobile dashboard implemented.
 - [x] Clickable failure diagnosis and recommendations implemented.
 - [x] Deterministic replay mode implemented.
@@ -33,7 +33,7 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 - [ ] Provision Postgres and set `DATABASE_URL`.
 - [ ] Apply the Drizzle migration.
 - [ ] Add `OPENAI_API_KEY` and verify a real `gpt-5.6` response ID.
-- [ ] Add `DISCORD_WEBHOOK_URL` and verify one alert.
+- [ ] Verify one local alert in `#stack-overlord-alerts`.
 - [ ] Duplicate Cognitive Bridge into an isolated sandbox repository.
 - [ ] Create the sandbox Firebase project and least-privilege service account.
 - [ ] Add the GitHub webhook secret and optional private-repository token.

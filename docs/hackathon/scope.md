@@ -16,7 +16,7 @@ Developers using AI agents and automated delivery pipelines who are vulnerable t
 - Make failed processes clickable on desktop and mobile.
 - Enrich failures with GitHub job and failed-step evidence.
 - Use GPT-5.6 to return a structured diagnosis, confidence, limitations, and prioritized recommendations with verification steps.
-- Send a Discord alert after a verified failure.
+- Send a Slack-native alert after every verified failure.
 - Provide deterministic replay fixtures when live integrations are unavailable.
 - Deploy Stack Overlord to Vercel.
 
@@ -32,7 +32,7 @@ Developers using AI agents and automated delivery pipelines who are vulnerable t
 ## Success criteria
 
 1. A real sandbox workflow success appears as successful without model involvement.
-2. A controlled sandbox failure appears as failed, remains stored if AI or Discord fails, and opens an evidence-backed diagnosis.
+2. A controlled sandbox failure appears as failed, remains stored if AI or Slack fails, and opens an evidence-backed diagnosis.
 3. The dashboard is coherent at desktop and 390-pixel mobile widths.
 4. Lint, type check, tests, and production build pass.
 5. Judges can run the project locally or use a live demo without rebuilding it.

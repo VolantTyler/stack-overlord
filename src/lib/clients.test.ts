@@ -2,8 +2,8 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { getDb } from "@/db";
 import { diagnoseFailure } from "@/lib/diagnosis";
-import { notifyDiscord } from "@/lib/discord";
 import type { PipelineRun } from "@/lib/pipeline";
+import { notifySlack } from "@/lib/slack";
 
 const run: PipelineRun = {
   id: "12345",
@@ -46,11 +46,61 @@ describe("optional clients", () => {
     ).resolves.toBeNull();
   });
 
-  it("skips Discord without a webhook URL", async () => {
-    vi.stubEnv("DISCORD_WEBHOOK_URL", "");
+  it("skips Slack without a webhook URL", async () => {
+    vi.stubEnv("SLACK_WEBHOOK_URL", "");
     const fetchSpy = vi.spyOn(globalThis, "fetch");
 
-    await expect(notifyDiscord(run)).resolves.toBe(false);
+    await expect(notifySlack(run)).resolves.toBe(false);
     expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("does not notify Slack for non-failure states", async () => {
+    vi.stubEnv(
+      "SLACK_WEBHOOK_URL",
+      "https://hooks.slack.test/services/local-test",
+    );
+    const fetchSpy = vi.spyOn(globalThis, "fetch");
+
+    await expect(
+      notifySlack({ ...run, status: "success" }),
+    ).resolves.toBe(false);
+    expect(fetchSpy).not.toHaveBeenCalled();
+  });
+
+  it("posts every failure as a Slack-native Block Kit message", async () => {
+    vi.stubEnv(
+      "SLACK_WEBHOOK_URL",
+      "https://hooks.slack.test/services/local-test",
+    );
+    const fetchSpy = vi
+      .spyOn(globalThis, "fetch")
+      .mockResolvedValue(new Response("ok"));
+
+    await expect(notifySlack(run)).resolves.toBe(true);
+
+    expect(fetchSpy).toHaveBeenCalledOnce();
+    const [url, request] = fetchSpy.mock.calls[0];
+    const payload = JSON.parse(String(request?.body)) as {
+      channel?: string;
+      text: string;
+      blocks: Array<{ type: string }>;
+    };
+
+    expect(url).toBe("https://hooks.slack.test/services/local-test");
+    expect(request).toMatchObject({
+      method: "POST",
+      headers: { "content-type": "application/json" },
+    });
+    expect(payload.channel).toBeUndefined();
+    expect(payload.text).toContain("Deploy sandbox failed");
+    expect(payload.blocks.map((block) => block.type)).toEqual([
+      "header",
+      "section",
+      "section",
+      "section",
+      "context",
+      "actions",
+    ]);
+    expect(JSON.stringify(payload)).not.toMatch(/<!channel>|<!here>|<@[A-Z0-9]+>/);
   });
 });

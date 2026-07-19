@@ -179,7 +179,7 @@ function PipelineMap({ failureCount }: { failureCount: number }) {
       icon: Bell,
       number: "04",
       label: "Notify",
-      detail: "Discord closes the loop",
+      detail: "Slack closes the loop",
       state: "Delivered",
     },
   ];

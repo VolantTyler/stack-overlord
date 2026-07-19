@@ -52,7 +52,7 @@ As a developer opening a failure, I want supporting evidence and ordered recover
 
 1. Show a successful Cognitive Bridge sandbox deployment in Stack Overlord.
 2. Trigger a controlled sandbox deployment failure.
-3. Show the failed process and Discord notification.
+3. Show the failed process and Slack notification.
 4. Open the failure to show verified state, evidence, confidence, limitations, and recovery recommendations.
 5. Resize to mobile and show the same incident experience.
 6. Briefly show the Codex task, tests, and `/feedback` session evidence.

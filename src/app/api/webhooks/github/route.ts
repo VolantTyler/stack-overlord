@@ -1,5 +1,4 @@
 import { diagnoseFailure } from "@/lib/diagnosis";
-import { notifyDiscord } from "@/lib/discord";
 import {
   fetchWorkflowEvidence,
   verifyGitHubSignature,
@@ -7,6 +6,7 @@ import {
   workflowRunFromPayload,
 } from "@/lib/github";
 import { savePipelineEvent, savePipelineRun } from "@/lib/repository";
+import { notifySlack } from "@/lib/slack";
 
 export const runtime = "nodejs";
 
@@ -101,9 +101,9 @@ export async function POST(request: Request) {
     }
 
     try {
-      await notifyDiscord(run);
+      await notifySlack(run);
     } catch (error) {
-      console.error("Discord notification failed after the run was stored.", error);
+      console.error("Slack notification failed after the run was stored.", error);
     }
   }
 

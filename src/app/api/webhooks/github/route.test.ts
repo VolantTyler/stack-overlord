@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 const mocks = vi.hoisted(() => ({
   diagnoseFailure: vi.fn(),
   fetchWorkflowEvidence: vi.fn(),
-  notifyDiscord: vi.fn(),
+  notifySlack: vi.fn(),
   savePipelineEvent: vi.fn(),
   savePipelineRun: vi.fn(),
 }));
@@ -12,7 +12,7 @@ const mocks = vi.hoisted(() => ({
 vi.mock("@/lib/diagnosis", () => ({
   diagnoseFailure: mocks.diagnoseFailure,
 }));
-vi.mock("@/lib/discord", () => ({ notifyDiscord: mocks.notifyDiscord }));
+vi.mock("@/lib/slack", () => ({ notifySlack: mocks.notifySlack }));
 vi.mock("@/lib/repository", () => ({
   savePipelineEvent: mocks.savePipelineEvent,
   savePipelineRun: mocks.savePipelineRun,
@@ -78,7 +78,7 @@ describe("GitHub webhook persistence ordering", () => {
     expect(response.status).toBe(503);
     expect(mocks.savePipelineRun).not.toHaveBeenCalled();
     expect(mocks.diagnoseFailure).not.toHaveBeenCalled();
-    expect(mocks.notifyDiscord).not.toHaveBeenCalled();
+    expect(mocks.notifySlack).not.toHaveBeenCalled();
   });
 
   it("does not repeat optional work for a duplicate delivery", async () => {
@@ -90,7 +90,7 @@ describe("GitHub webhook persistence ordering", () => {
     await expect(response.json()).resolves.toMatchObject({ duplicate: true });
     expect(mocks.savePipelineRun).not.toHaveBeenCalled();
     expect(mocks.diagnoseFailure).not.toHaveBeenCalled();
-    expect(mocks.notifyDiscord).not.toHaveBeenCalled();
+    expect(mocks.notifySlack).not.toHaveBeenCalled();
   });
 
   it("stops before optional work when normalized run storage fails", async () => {
@@ -101,6 +101,33 @@ describe("GitHub webhook persistence ordering", () => {
 
     expect(response.status).toBe(503);
     expect(mocks.diagnoseFailure).not.toHaveBeenCalled();
-    expect(mocks.notifyDiscord).not.toHaveBeenCalled();
+    expect(mocks.notifySlack).not.toHaveBeenCalled();
+  });
+
+  it("reports every persisted workflow failure to Slack", async () => {
+    mocks.savePipelineEvent.mockResolvedValue("stored");
+    mocks.savePipelineRun.mockResolvedValue(true);
+    mocks.fetchWorkflowEvidence.mockResolvedValue([]);
+    mocks.diagnoseFailure.mockResolvedValue(null);
+    mocks.notifySlack.mockResolvedValue(true);
+
+    const response = await POST(signedRequest());
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      persisted: true,
+      status: "failure",
+      diagnosed: false,
+    });
+    expect(mocks.notifySlack).toHaveBeenCalledOnce();
+    expect(mocks.notifySlack).toHaveBeenCalledWith(
+      expect.objectContaining({
+        id: "12345",
+        status: "failure",
+      }),
+    );
+    expect(mocks.savePipelineRun.mock.invocationCallOrder[0]).toBeLessThan(
+      mocks.notifySlack.mock.invocationCallOrder[0],
+    );
   });
 });

@@ -26,7 +26,7 @@ Agentic development makes it possible to move quickly across code, pull requests
 
 ## What it does
 
-Stack Overlord receives signed GitHub webhooks and records the factual state of each workflow in a durable Postgres ledger. Its responsive dashboard shows running, successful, failed, and cancelled processes across desktop and mobile. Failed processes open into an evidence-backed GPT-5.6 diagnosis containing the likely cause, confidence, limitations, and prioritized recovery actions with verification steps. Discord alerts pull the developer back before the failure is forgotten.
+Stack Overlord receives signed GitHub webhooks and records the factual state of each workflow in a durable Postgres ledger. Its responsive dashboard shows running, successful, failed, and cancelled processes across desktop and mobile. Failed processes open into an evidence-backed GPT-5.6 diagnosis containing the likely cause, confidence, limitations, and prioritized recovery actions with verification steps. Slack alerts pull the developer back before the failure is forgotten.
 
 ## What makes it different
 
@@ -34,7 +34,7 @@ CI dashboards and chat notifications usually report that a job failed; general-p
 
 ## How we built it
 
-The application is a Next.js and TypeScript system deployed on Vercel. Route handlers verify GitHub HMAC signatures and normalize workflow runs. Drizzle ORM writes raw deliveries and pipeline state to Postgres. For failed runs, Stack Overlord retrieves GitHub job and failed-step evidence, then calls GPT-5.6 through the OpenAI Responses API with a strict structured-output schema. The diagnosis is stored and rendered in an accessible shadcn/ui dashboard, and the same incident can produce a concise Discord alert.
+The application is a Next.js and TypeScript system deployed on Vercel. Route handlers verify GitHub HMAC signatures and normalize workflow runs. Drizzle ORM writes raw deliveries and pipeline state to Postgres. For failed runs, Stack Overlord retrieves GitHub job and failed-step evidence, then calls GPT-5.6 through the OpenAI Responses API with a strict structured-output schema. The diagnosis is stored and rendered in an accessible shadcn/ui dashboard, and the same incident can produce a concise Slack Block Kit alert.
 
 ## How Codex was used
 
@@ -54,7 +54,7 @@ GPT-5.6 is part of the finished product, not the source of pipeline truth. GitHu
 ## Accomplishments
 
 - The deterministic event ledger survives optional downstream failures.
-- The same failure experience works coherently on desktop, mobile, and Discord.
+- The same failure experience works coherently on desktop, mobile, and Slack.
 - Replay mode gives judges a predictable test path while remaining clearly labeled.
 - Every model recommendation is paired with a verification step.
 
@@ -86,7 +86,7 @@ If live integrations have been configured and verified before judging, the prese
 
 1. **0:00–0:20 — Problem:** A merge succeeds, the Firebase deployment fails, and the developer changes context.
 2. **0:20–0:50 — Pipeline truth:** Show a successful sandbox run and the Stack Overlord ledger.
-3. **0:50–1:25 — Failure:** Trigger the controlled failure and show the dashboard plus Discord alert.
+3. **0:50–1:25 — Failure:** Trigger the controlled failure and show the dashboard plus Slack alert.
 4. **1:25–2:05 — GPT-5.6:** Open the failure and explain evidence, confidence, limitations, and recovery verification.
 5. **2:05–2:25 — Mobile:** Open the same incident at a mobile width.
 6. **2:25–2:50 — Codex:** Show the core Codex task, tests, browser verification, and `/feedback` ID.

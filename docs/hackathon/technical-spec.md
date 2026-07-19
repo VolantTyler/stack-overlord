@@ -10,7 +10,7 @@ Cognitive Bridge sandbox
   -> GitHub Actions job/step evidence
   -> GPT-5.6 structured diagnosis
   -> Postgres diagnosis update
-  -> Discord alert
+  -> Slack Block Kit alert
   -> responsive dashboard
 ```
 
@@ -31,7 +31,7 @@ Behavior:
 - Return `400` for invalid JSON.
 - Persist every supported signed delivery idempotently.
 - Normalize `workflow_run` payloads into a pipeline run.
-- Store a failed run before evidence enrichment, GPT-5.6, or Discord.
+- Store a failed run before evidence enrichment, GPT-5.6, or Slack.
 - Treat diagnosis and notification failures as non-destructive follow-on errors.
 
 ### GPT-5.6 diagnosis
@@ -66,7 +66,7 @@ Stores workflow/run ID, repository, branch, commit, workflow, deterministic stat
 - No `DATABASE_URL`: render deterministic demo records and accept no durable webhook writes.
 - No `OPENAI_API_KEY`: persist and display failure with diagnosis pending.
 - No `GITHUB_TOKEN`: use unauthenticated evidence for public repositories or continue with webhook metadata for private repositories.
-- No `DISCORD_WEBHOOK_URL`: retain dashboard behavior without notification.
+- No `SLACK_WEBHOOK_URL`: retain dashboard behavior without notification.
 - GitHub evidence unavailable: GPT-5.6 receives the verified run metadata and must lower confidence appropriately.
 
 ## Supported platforms

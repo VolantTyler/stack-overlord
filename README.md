@@ -21,7 +21,7 @@ Live demo: [stack-overlord.vercel.app](https://stack-overlord.vercel.app)
 - Postgres with Drizzle ORM
 - OpenAI Responses API using `gpt-5.6`
 - Signed GitHub webhooks
-- Discord failure notifications
+- Slack-native failure notifications
 - Vercel deployment
 
 ## Local setup
@@ -47,9 +47,13 @@ the [demo walkthrough](docs/demo-walkthrough.md).
 | `OPENAI_MODEL` | Runtime model; defaults to `gpt-5.6` | No |
 | `GITHUB_WEBHOOK_SECRET` | HMAC verification for GitHub deliveries | No |
 | `GITHUB_TOKEN` | Optional private-repository job and failed-step evidence | No |
-| `DISCORD_WEBHOOK_URL` | Failure alerts | No |
+| `SLACK_WEBHOOK_URL` | Slack failure alerts | No |
 
 Never commit `.env.local` or real credentials.
+
+Slack notifications use Block Kit and report every verified workflow failure without
+mentions. Configure the incoming webhook for `#stack-overlord-alerts`; Slack controls
+the destination channel from the webhook itself.
 
 ## Database
 
