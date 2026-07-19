@@ -1,31 +1,77 @@
 # Remote preview screenshots
 
-Stack Overlord can be served in the remote environment with `npm run dev`, then
-captured by browser automation when the environment includes a browser binary.
+Stack Overlord includes a pinned Playwright runner and a Chromium-based capture
+flow for Codex cloud. It creates full-page desktop and mobile screenshots while
+also checking the page response, key dashboard headings, and browser errors.
 
-## Required environment setup
+## Why environment setup is required
 
-The remote image should preinstall at least one browser automation target:
+Codex cloud has two relevant phases:
 
-- Chromium or Google Chrome for Playwright/Puppeteer-style screenshots.
-- Firefox if the capture workflow is configured to use it.
+1. The environment setup script runs with network access.
+2. The agent phase runs without internet access by default.
 
-Runtime package installation is not a reliable fallback because restricted
-environments can block npm registry and apt repository access. Keep the browser
-binary in the base image and verify it before asking the agent to capture UI
-changes.
+Installing the Playwright npm package does not download its matching browser.
+Provision Chromium and its Linux libraries during environment setup so the
+offline agent phase can launch it later. Playwright stores its managed browser in
+a cache rather than placing `chromium` on `PATH`.
 
-## Verification
+## Codex cloud environment
 
-Run this before attempting a screenshot:
+In the Codex environment used for this repository:
 
-    npm run preview:check
+1. Merge this browser setup into the repository's default branch.
+2. Select Node.js 22.
+3. Set the setup script to:
 
-If the command fails, the app can still be started for HTTP preview, but the
-agent cannot capture browser screenshots until the environment image provides a
-supported browser binary.
+   ```bash
+   bash scripts/setup-codex-cloud.sh
+   ```
+
+4. Use the same command as the maintenance script so a changed lockfile installs
+   the matching Playwright browser revision in a resumed container.
+5. Save the environment, then select **Reset cache** once if it was previously
+   created without Playwright.
+6. Start a new task with that environment selected.
+
+The repository script runs:
+
+```bash
+npm ci --include=dev
+npm run preview:install
+npm run preview:check
+```
+
+`preview:install` resolves to
+`playwright install --with-deps chromium`, which installs both Chromium and the
+Linux packages it needs.
+
+## Capture and verification
+
+Check that the package, browser binary, and Linux libraries are all usable:
+
+```bash
+npm run preview:check
+```
+
+Start Next.js automatically, verify the page in desktop and mobile Chromium, and
+capture both views:
+
+```bash
+npm run preview:capture
+```
+
+The screenshots are written to:
+
+```text
+artifacts/remote-preview/desktop.png
+artifacts/remote-preview/mobile.png
+```
+
+To capture an already-running or deployed app instead of starting the local dev
+server, set `PREVIEW_BASE_URL` before running `preview:capture`.
 
 ## Build reliability
 
-The app uses system font stacks instead of `next/font/google` so production
-builds do not depend on Google Fonts network access.
+The app uses system font stacks instead of `next/font/google` so builds and
+screenshots do not depend on Google Fonts network access.

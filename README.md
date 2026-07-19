@@ -104,6 +104,9 @@ npm test
 npm run build
 ```
 
+For Codex cloud browser provisioning and one-command desktop/mobile screenshots,
+see [Remote preview screenshots](docs/remote-preview.md).
+
 ## Build Week project files
 
 The Devpost Guided Build Tool is reflected in a small set of canonical project documents:
