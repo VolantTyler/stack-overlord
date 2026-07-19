@@ -2,6 +2,7 @@ import { createHmac } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 const mocks = vi.hoisted(() => ({
+  afterCallbacks: [] as Array<() => void | Promise<void>>,
   diagnoseFailure: vi.fn(),
   fetchWorkflowEvidence: vi.fn(),
   notifySlack: vi.fn(),
@@ -9,6 +10,11 @@ const mocks = vi.hoisted(() => ({
   savePipelineRun: vi.fn(),
 }));
 
+vi.mock("next/server", () => ({
+  after: vi.fn((callback: () => void | Promise<void>) => {
+    mocks.afterCallbacks.push(callback);
+  }),
+}));
 vi.mock("@/lib/diagnosis", () => ({
   diagnoseFailure: mocks.diagnoseFailure,
 }));
@@ -45,8 +51,8 @@ const workflowPayload = {
   },
 };
 
-function signedRequest() {
-  const body = JSON.stringify(workflowPayload);
+function signedRequest(payload: Record<string, unknown> = workflowPayload) {
+  const body = JSON.stringify(payload);
   const signature = `sha256=${createHmac("sha256", secret).update(body).digest("hex")}`;
 
   return new Request("http://localhost/api/webhooks/github", {
@@ -60,9 +66,19 @@ function signedRequest() {
   });
 }
 
+async function runAfterCallbacks() {
+  const callbacks = [...mocks.afterCallbacks];
+  mocks.afterCallbacks.length = 0;
+  await Promise.all(callbacks.map((callback) => callback()));
+}
+
 beforeEach(() => {
   vi.stubEnv("GITHUB_WEBHOOK_SECRET", secret);
   vi.clearAllMocks();
+  mocks.afterCallbacks.length = 0;
+  mocks.fetchWorkflowEvidence.mockResolvedValue([]);
+  mocks.diagnoseFailure.mockResolvedValue(null);
+  mocks.notifySlack.mockResolvedValue(true);
 });
 
 afterEach(() => {
@@ -70,6 +86,54 @@ afterEach(() => {
 });
 
 describe("GitHub webhook persistence ordering", () => {
+  it("responds successfully without waiting for deliberately slow diagnosis", async () => {
+    mocks.savePipelineEvent.mockResolvedValue("stored");
+    mocks.savePipelineRun.mockResolvedValue(true);
+    mocks.diagnoseFailure.mockImplementation(
+      () => new Promise((resolve) => setTimeout(() => resolve(null), 60_000)),
+    );
+
+    const response = await POST(signedRequest());
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      persisted: true,
+      status: "failure",
+      diagnosisScheduled: true,
+    });
+    expect(mocks.diagnoseFailure).not.toHaveBeenCalled();
+    expect(mocks.notifySlack).not.toHaveBeenCalled();
+    expect(mocks.afterCallbacks).toHaveLength(1);
+  });
+
+  it("persists event and normalized run before acknowledgement", async () => {
+    mocks.savePipelineEvent.mockResolvedValue("stored");
+    mocks.savePipelineRun.mockResolvedValue(true);
+
+    const response = await POST(signedRequest());
+
+    expect(response.status).toBe(200);
+    expect(mocks.savePipelineEvent).toHaveBeenCalledBefore(mocks.savePipelineRun);
+    expect(mocks.savePipelineRun).toHaveBeenCalledBefore(
+      vi.mocked(await import("next/server")).after,
+    );
+  });
+
+  it("starts optional work only after persistence and after the post-response callback runs", async () => {
+    mocks.savePipelineEvent.mockResolvedValue("stored");
+    mocks.savePipelineRun.mockResolvedValue(true);
+
+    const response = await POST(signedRequest());
+
+    expect(response.status).toBe(200);
+    expect(mocks.fetchWorkflowEvidence).not.toHaveBeenCalled();
+    await runAfterCallbacks();
+    expect(mocks.savePipelineRun).toHaveBeenCalledBefore(mocks.fetchWorkflowEvidence);
+    expect(mocks.fetchWorkflowEvidence).toHaveBeenCalledOnce();
+    expect(mocks.diagnoseFailure).toHaveBeenCalledOnce();
+    expect(mocks.notifySlack).toHaveBeenCalledOnce();
+  });
+
   it("stops before optional work when event storage is unavailable", async () => {
     mocks.savePipelineEvent.mockResolvedValue("unavailable");
 
@@ -79,18 +143,21 @@ describe("GitHub webhook persistence ordering", () => {
     expect(mocks.savePipelineRun).not.toHaveBeenCalled();
     expect(mocks.diagnoseFailure).not.toHaveBeenCalled();
     expect(mocks.notifySlack).not.toHaveBeenCalled();
+    expect(mocks.afterCallbacks).toHaveLength(0);
   });
 
-  it("does not repeat optional work for a duplicate delivery", async () => {
-    mocks.savePipelineEvent.mockResolvedValue("duplicate");
+  it("does not repeat optional work or notify twice for a duplicate delivery", async () => {
+    mocks.savePipelineEvent.mockResolvedValueOnce("stored").mockResolvedValueOnce("duplicate");
+    mocks.savePipelineRun.mockResolvedValue(true);
 
-    const response = await POST(signedRequest());
+    const first = await POST(signedRequest());
+    const retry = await POST(signedRequest());
+    await runAfterCallbacks();
 
-    expect(response.status).toBe(200);
-    await expect(response.json()).resolves.toMatchObject({ duplicate: true });
-    expect(mocks.savePipelineRun).not.toHaveBeenCalled();
-    expect(mocks.diagnoseFailure).not.toHaveBeenCalled();
-    expect(mocks.notifySlack).not.toHaveBeenCalled();
+    expect(first.status).toBe(200);
+    expect(retry.status).toBe(200);
+    await expect(retry.json()).resolves.toMatchObject({ duplicate: true });
+    expect(mocks.notifySlack).toHaveBeenCalledOnce();
   });
 
   it("stops before optional work when normalized run storage fails", async () => {
@@ -102,32 +169,42 @@ describe("GitHub webhook persistence ordering", () => {
     expect(response.status).toBe(503);
     expect(mocks.diagnoseFailure).not.toHaveBeenCalled();
     expect(mocks.notifySlack).not.toHaveBeenCalled();
+    expect(mocks.afterCallbacks).toHaveLength(0);
   });
 
-  it("reports every persisted workflow failure to Slack", async () => {
+  it("keeps diagnosis and Slack failures outside the accepted response", async () => {
     mocks.savePipelineEvent.mockResolvedValue("stored");
     mocks.savePipelineRun.mockResolvedValue(true);
-    mocks.fetchWorkflowEvidence.mockResolvedValue([]);
-    mocks.diagnoseFailure.mockResolvedValue(null);
-    mocks.notifySlack.mockResolvedValue(true);
+    mocks.diagnoseFailure.mockRejectedValue(new Error("slow model failed"));
+    mocks.notifySlack.mockRejectedValue(new Error("slack failed"));
 
     const response = await POST(signedRequest());
 
     expect(response.status).toBe(200);
     await expect(response.json()).resolves.toMatchObject({
-      persisted: true,
-      status: "failure",
-      diagnosed: false,
+      accepted: true,
+      diagnosisScheduled: true,
     });
-    expect(mocks.notifySlack).toHaveBeenCalledOnce();
-    expect(mocks.notifySlack).toHaveBeenCalledWith(
-      expect.objectContaining({
-        id: "12345",
-        status: "failure",
-      }),
-    );
-    expect(mocks.savePipelineRun.mock.invocationCallOrder[0]).toBeLessThan(
-      mocks.notifySlack.mock.invocationCallOrder[0],
-    );
+    await expect(runAfterCallbacks()).resolves.toBeUndefined();
+    expect(mocks.savePipelineRun).toHaveBeenCalledOnce();
+  });
+
+  it("rejects invalid signatures before persistence", async () => {
+    const request = signedRequest();
+    request.headers.set("x-hub-signature-256", "sha256=invalid");
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(401);
+    expect(mocks.savePipelineEvent).not.toHaveBeenCalled();
+  });
+
+  it("returns unsupported-payload status after event persistence only", async () => {
+    mocks.savePipelineEvent.mockResolvedValue("stored");
+    const response = await POST(signedRequest({ action: "completed", repository: {} }));
+
+    expect(response.status).toBe(422);
+    expect(mocks.savePipelineRun).not.toHaveBeenCalled();
+    expect(mocks.afterCallbacks).toHaveLength(0);
   });
 });
