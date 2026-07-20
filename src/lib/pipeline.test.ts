@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 
+import { demoPipelineRuns } from "@/lib/demo-data";
 import { diagnosisSchema } from "@/lib/pipeline";
 
 describe("diagnosisSchema", () => {
@@ -14,6 +15,7 @@ describe("diagnosisSchema", () => {
         {
           priority: 1,
           action: "Restore the sandbox secret.",
+          rationale: "The authentication action received no credential payload.",
           verification: "Re-run the workflow and inspect the auth step.",
         },
       ],
@@ -33,5 +35,24 @@ describe("diagnosisSchema", () => {
     });
 
     expect(result.success).toBe(false);
+  });
+});
+
+describe("demo analysis provenance", () => {
+  it("gives every row a clearly non-model fixture analysis", () => {
+    expect(demoPipelineRuns).not.toHaveLength(0);
+
+    for (const run of demoPipelineRuns) {
+      expect(run.diagnosis).toMatchObject({
+        model: "not-applicable",
+        provenance: "demo-fixture",
+        responseId: null,
+        schemaVersion: 2,
+        fixtureVersion: "demo-fixture-v2",
+      });
+      expect(run.diagnosis?.requestedModel).toBeUndefined();
+      expect(run.diagnosis?.promptVersion).toBeUndefined();
+      expect(run.diagnosis?.context?.status).toBe(run.status);
+    }
   });
 });

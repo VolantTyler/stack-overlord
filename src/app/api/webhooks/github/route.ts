@@ -8,7 +8,11 @@ import {
   workflowRunFromPayload,
 } from "@/lib/github";
 import type { PipelineRun } from "@/lib/pipeline";
-import { savePipelineEvent, savePipelineRun } from "@/lib/repository";
+import {
+  savePipelineEvent,
+  savePipelineRun,
+  savePipelineRunAnalysis,
+} from "@/lib/repository";
 import { notifySlack } from "@/lib/slack";
 
 export const runtime = "nodejs";
@@ -40,14 +44,33 @@ function logWebhookTiming(
   );
 }
 
-async function runOptionalFailureWork(run: PipelineRun, context: WebhookLogContext) {
+async function runOptionalFailureWork(
+  run: PipelineRun,
+  context: WebhookLogContext,
+  expectedUpdatedAt: string,
+) {
   const optionalStartedAt = performance.now();
   logWebhookTiming("github_webhook_optional_started", context, optionalStartedAt);
 
   try {
     const evidence = await fetchWorkflowEvidence(run);
     run.diagnosis = await diagnoseFailure(run, evidence);
-    if (run.diagnosis) await savePipelineRun(run);
+    if (run.diagnosis) {
+      const saved = await savePipelineRunAnalysis(
+        run.id,
+        run.status,
+        run.diagnosis,
+        expectedUpdatedAt,
+      );
+      if (saved !== "saved") {
+        run.diagnosis = null;
+        logWebhookTiming(
+          "github_webhook_diagnosis_discarded_stale",
+          context,
+          optionalStartedAt,
+        );
+      }
+    }
     logWebhookTiming("github_webhook_diagnosis_finished", context, optionalStartedAt, {
       diagnosed: Boolean(run.diagnosis),
     });
@@ -83,9 +106,13 @@ async function runOptionalFailureWork(run: PipelineRun, context: WebhookLogConte
   }
 }
 
-function scheduleOptionalFailureWork(run: PipelineRun, context: WebhookLogContext) {
+function scheduleOptionalFailureWork(
+  run: PipelineRun,
+  context: WebhookLogContext,
+  expectedUpdatedAt: string,
+) {
   after(async () => {
-    await runOptionalFailureWork(run, context);
+    await runOptionalFailureWork(run, context, expectedUpdatedAt);
   });
 }
 
@@ -184,7 +211,7 @@ export async function POST(request: Request) {
   });
 
   if (run.status === "failure") {
-    scheduleOptionalFailureWork(run, runContext);
+    scheduleOptionalFailureWork(run, runContext, runPersisted);
   }
 
   logWebhookTiming("github_webhook_acknowledged", runContext, startedAt, {
