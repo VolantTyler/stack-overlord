@@ -37,8 +37,8 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 - [ ] Duplicate Cognitive Bridge into an isolated sandbox repository.
 - [ ] Create the sandbox Firebase project and least-privilege service account.
 - [ ] Add the GitHub webhook secret and optional private-repository token.
-- [ ] Demonstrate one real sandbox success and one controlled failure.
-- [ ] Save sanitized webhook fixtures from those real runs.
+- [x] Demonstrate one real sandbox success and one controlled failure.
+- [x] Save sanitized webhook fixtures from those real runs.
 
 ## Judging gates
 
@@ -54,7 +54,7 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 - [x] Complete dashboard experience, not only a webhook proof of concept.
 - [x] Desktop and mobile layouts verified.
 - [x] Empty, loading, failure, degraded, and pending-diagnosis states designed.
-- [ ] Verify the hosted deployment in desktop and mobile browsers.
+- [x] Verify the hosted deployment in desktop and mobile browsers.
 
 ### Potential Impact
 
