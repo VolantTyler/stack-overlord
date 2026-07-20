@@ -1,7 +1,8 @@
 import { createHmac } from "node:crypto";
-import { describe, expect, it } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 
 import {
+  fetchWorkflowEvidence,
   verifyGitHubSignature,
   webhookMetadata,
   workflowRunFromPayload,
@@ -25,6 +26,11 @@ const workflowPayload = {
     actor: { login: "VolantTyler" },
   },
 };
+
+afterEach(() => {
+  vi.restoreAllMocks();
+  vi.unstubAllEnvs();
+});
 
 describe("verifyGitHubSignature", () => {
   it("accepts a valid sha256 signature", () => {
@@ -82,5 +88,159 @@ describe("webhookMetadata", () => {
       action: "completed",
       repository: "VolantTyler/cognitive-bridge-demo",
     });
+  });
+});
+
+describe("fetchWorkflowEvidence", () => {
+  it("returns stable GitHub job and relevant step evidence for any run state", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        total_count: 1,
+        jobs: [
+          {
+            id: 7788,
+            name: "Deploy sandbox",
+            status: "completed",
+            conclusion: "failure",
+            started_at: "2026-07-16T16:00:00.000Z",
+            completed_at: "2026-07-16T16:02:05.000Z",
+            steps: [
+              {
+                number: 1,
+                name: "Build",
+                status: "completed",
+                conclusion: "success",
+              },
+              {
+                number: 2,
+                name: "Authenticate",
+                status: "completed",
+                conclusion: "failure",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+
+    const run = workflowRunFromPayload(workflowPayload);
+    expect(run).not.toBeNull();
+
+    await expect(fetchWorkflowEvidence(run!)).resolves.toEqual({
+      items: [
+        {
+          id: "job:7788",
+          source: "github_actions_jobs",
+          fact:
+            'GitHub Actions job "Deploy sandbox" has status "completed" and conclusion "failure". It ran from 2026-07-16T16:00:00.000Z to 2026-07-16T16:02:05.000Z.',
+        },
+        {
+          id: "step:7788:2",
+          source: "github_actions_jobs",
+          fact:
+            'Step 2, "Authenticate", in job "Deploy sandbox" has status "completed" and conclusion "failure".',
+        },
+      ],
+      status: "available",
+      note: null,
+    });
+  });
+
+  it("records unavailable job context without inventing evidence", async () => {
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(new Response(null, { status: 404 }));
+    const run = workflowRunFromPayload(workflowPayload);
+
+    await expect(fetchWorkflowEvidence(run!)).resolves.toEqual({
+      items: [],
+      status: "unavailable",
+      note: "GitHub Actions job details were unavailable (HTTP 404).",
+    });
+  });
+
+  it("omits the configured GitHub token when anonymous evidence is requested", async () => {
+    vi.stubEnv("GITHUB_TOKEN", "github-secret-token");
+    const fetchMock = vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({ total_count: 0, jobs: [] }),
+    );
+    const run = workflowRunFromPayload(workflowPayload);
+
+    await fetchWorkflowEvidence(run!, { authentication: "anonymous" });
+
+    const anonymousHeaders = new Headers(
+      (fetchMock.mock.calls[0][1] as RequestInit).headers,
+    );
+    expect(anonymousHeaders.has("authorization")).toBe(false);
+
+    await fetchWorkflowEvidence(run!);
+    const configuredHeaders = new Headers(
+      (fetchMock.mock.calls[1][1] as RequestInit).headers,
+    );
+    expect(configuredHeaders.get("authorization")).toBe(
+      "Bearer github-secret-token",
+    );
+  });
+
+  it("retains failed job and step evidence when more than 12 records are available", async () => {
+    const successfulJobs = Array.from({ length: 12 }, (_, index) => ({
+      id: index + 1,
+      name: `Successful job ${index + 1}`,
+      status: "completed",
+      conclusion: "success",
+      steps: [],
+    }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        total_count: 13,
+        jobs: [
+          ...successfulJobs,
+          {
+            id: 99,
+            name: "Deploy sandbox",
+            status: "completed",
+            conclusion: "failure",
+            steps: [
+              {
+                number: 4,
+                name: "Release",
+                status: "completed",
+                conclusion: "failure",
+              },
+            ],
+          },
+        ],
+      }),
+    );
+    const run = workflowRunFromPayload(workflowPayload);
+
+    const result = await fetchWorkflowEvidence(run!);
+
+    expect(result.items).toHaveLength(12);
+    expect(result.items.slice(0, 2).map((item) => item.id)).toEqual([
+      "job:99",
+      "step:99:4",
+    ]);
+    expect(result.note).toContain("failures and other non-success states first");
+  });
+
+  it("discloses when GitHub has more jobs than the first API page supplied", async () => {
+    const firstPageJobs = Array.from({ length: 100 }, (_, index) => ({
+      id: index + 1,
+      name: `Matrix job ${index + 1}`,
+      status: "completed",
+      conclusion: "success",
+      steps: [],
+    }));
+    vi.spyOn(globalThis, "fetch").mockResolvedValue(
+      Response.json({
+        total_count: 101,
+        jobs: firstPageJobs,
+      }),
+    );
+    const run = workflowRunFromPayload(workflowPayload);
+
+    const result = await fetchWorkflowEvidence(run!);
+
+    expect(result.note).toContain("first API page of 100");
+    expect(result.note).toContain("later-page jobs and steps were not provided");
   });
 });

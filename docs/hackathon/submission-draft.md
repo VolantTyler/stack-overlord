@@ -30,7 +30,7 @@ Stack Overlord receives signed GitHub webhooks and records the factual state of 
 
 ## What makes it different
 
-CI dashboards and chat notifications usually report that a job failed; general-purpose AI assistants can suggest fixes after a developer supplies context. Stack Overlord closes the gap between those experiences without asking AI to decide what happened: signed GitHub events remain the source of truth, accepted telemetry is stored before any optional enrichment, and GPT-5.6 explains only an already-verified failure using the available job and step evidence. The result is a durable post-merge ledger plus confidence-aware guidance, explicit limitations, and testable recovery steps—not another model-generated status summary.
+CI dashboards and chat notifications usually report that a job failed; general-purpose AI assistants can suggest fixes after a developer supplies context. Stack Overlord closes the gap between those experiences without asking AI to decide what happened: signed GitHub events remain the source of truth, accepted telemetry is stored before any optional enrichment, failures are analyzed automatically, and any canonical stored run can be analyzed on demand using bounded run and job/step evidence. The result is a durable post-merge ledger plus confidence-aware guidance, explicit limitations, and testable next steps—not another model-generated status summary.
 
 ## How we built it
 
@@ -42,7 +42,7 @@ Codex translated the reviewed PRD into the architecture, responsive dashboard, w
 
 ## How GPT-5.6 was used
 
-GPT-5.6 is part of the finished product, not the source of pipeline truth. GitHub determines whether a workflow passed or failed. GPT-5.6 receives the already-verified failed run and available job/step evidence, then returns a structured diagnosis with explicit uncertainty and verifiable recovery recommendations. The dashboard records the model and response ID for traceability.
+GPT-5.6 is part of the finished product, not the source of pipeline truth. GitHub determines whether a workflow passed or failed. Failures are analyzed automatically, and every ledger row can request an on-demand analysis of its canonical server-side record. The model receives bounded run and job/step evidence, then returns a structured interpretation with explicit uncertainty and verifiable next steps. The dashboard discloses missing context and records requested/resolved model identifiers, provenance, and response ID for traceability.
 
 ## Challenges
 
@@ -75,8 +75,8 @@ No account or credentials are required for the deterministic judging path:
 
 1. Open https://stack-overlord.vercel.app and confirm the dashboard labels its fixture-backed state.
 2. Select **Replay failure**.
-3. Open the failed process and confirm that its GitHub-derived status is distinct from the GPT-5.6 explanation.
-4. Review the cited job and failed-step evidence, confidence, and limitations.
+3. Open the failed process and confirm that its seeded status is distinct from the hand-authored analysis fixture.
+4. Confirm the trace says no model call or API response occurred, then review the cited fixture evidence, confidence, and limitations.
 5. Expand the prioritized recommendations and check that each includes a concrete verification step.
 6. Narrow the browser or open the same incident on a phone to verify the responsive experience.
 

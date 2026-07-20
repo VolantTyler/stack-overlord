@@ -1,4 +1,4 @@
-import { desc, eq } from "drizzle-orm";
+import { and, desc, eq } from "drizzle-orm";
 
 import { getDb } from "@/db";
 import { pipelineEvents, pipelineRuns } from "@/db/schema";
@@ -108,11 +108,12 @@ export async function savePipelineRun(run: PipelineRun) {
   const db = getDb();
   if (!db) return false;
 
+  const updatedAt = new Date();
   const values: typeof pipelineRuns.$inferInsert = {
     ...run,
     startedAt: new Date(run.startedAt),
     completedAt: run.completedAt ? new Date(run.completedAt) : null,
-    updatedAt: new Date(),
+    updatedAt,
   };
 
   await db
@@ -122,5 +123,100 @@ export async function savePipelineRun(run: PipelineRun) {
       target: pipelineRuns.id,
       set: values,
     });
-  return true;
+  return updatedAt.toISOString();
+}
+
+export type PipelineRunLookup = {
+  run: PipelineRun | null;
+  source: "postgres" | "demo";
+  updatedAt: string | null;
+  revision: string | null;
+};
+
+function demoRunLookup(id: string): PipelineRunLookup {
+  return {
+    run: demoPipelineRuns.find((run) => run.id === id) ?? null,
+    source: "demo",
+    updatedAt: null,
+    revision: null,
+  };
+}
+
+export async function getPipelineRunById(
+  id: string,
+): Promise<PipelineRunLookup> {
+  const db = getDb();
+  if (!db) {
+    return demoRunLookup(id);
+  }
+
+  try {
+    const [row] = await db
+      .select()
+      .from(pipelineRuns)
+      .where(eq(pipelineRuns.id, id))
+      .limit(1);
+
+    if (!row) {
+      const demoLookup = demoRunLookup(id);
+      return demoLookup.run
+        ? demoLookup
+        : {
+            run: null,
+            source: "postgres",
+            updatedAt: null,
+            revision: null,
+          };
+    }
+
+    const updatedAt = row.updatedAt.toISOString();
+    return {
+      run: serializeRun(row),
+      source: "postgres",
+      updatedAt,
+      revision: updatedAt,
+    };
+  } catch (error) {
+    console.error("Unable to load a pipeline run; checking demo data.", error);
+    return demoRunLookup(id);
+  }
+}
+
+export async function savePipelineRunAnalysis(
+  runId: string,
+  expectedStatus: PipelineStatus,
+  diagnosis: Diagnosis,
+  expectedUpdatedAt?: string,
+) {
+  const db = getDb();
+  if (!db) return "unavailable" as const;
+
+  const expectedRevision = expectedUpdatedAt
+    ? new Date(expectedUpdatedAt)
+    : null;
+  if (expectedRevision && Number.isNaN(expectedRevision.getTime())) {
+    return "stale" as const;
+  }
+
+  const updated = await db
+    .update(pipelineRuns)
+    .set({
+      diagnosis,
+      updatedAt: new Date(),
+    })
+    .where(
+      expectedRevision
+        ? and(
+            eq(pipelineRuns.id, runId),
+            eq(pipelineRuns.status, expectedStatus),
+            eq(pipelineRuns.updatedAt, expectedRevision),
+          )
+        : and(
+            eq(pipelineRuns.id, runId),
+            eq(pipelineRuns.status, expectedStatus),
+          ),
+    )
+    .returning({ id: pipelineRuns.id });
+
+  return updated.length > 0 ? ("saved" as const) : ("stale" as const);
 }

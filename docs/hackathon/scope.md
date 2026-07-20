@@ -2,7 +2,7 @@
 
 ## Outcome
 
-Deliver a working Developer Tools submission that gives a single developer a trustworthy view from GitHub workflow execution to deployment outcome, then explains failures with evidence-backed GPT-5.6 analysis.
+Deliver a working Developer Tools submission that gives a single developer a trustworthy view from GitHub workflow execution to deployment outcome, then explains selected runs with bounded, evidence-backed OpenAI analysis.
 
 ## Primary audience
 
@@ -13,9 +13,10 @@ Developers using AI agents and automated delivery pipelines who are vulnerable t
 - Receive signed `push`, `pull_request`, and `workflow_run` GitHub webhooks.
 - Store all accepted deliveries in Postgres and normalize workflow runs into a pipeline ledger.
 - Display success, failure, running, and cancelled states in a responsive dashboard.
-- Make failed processes clickable on desktop and mobile.
+- Give every process an accessible, expandable Analyze control on desktop and mobile.
 - Enrich failures with GitHub job and failed-step evidence.
-- Use GPT-5.6 to return a structured diagnosis, confidence, limitations, and prioritized recommendations with verification steps.
+- Analyze failures automatically and any canonical stored run on demand.
+- Return structured interpretation, confidence, limitations, evidence references, and prioritized recommendations with verification steps.
 - Send a Slack-native alert after every verified failure.
 - Provide deterministic replay fixtures when live integrations are unavailable.
 - Deploy Stack Overlord to Vercel.

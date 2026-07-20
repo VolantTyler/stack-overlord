@@ -10,8 +10,9 @@ A concise product outline for evolving Stack Overlord from a single demo dashboa
 - It stores accepted webhook deliveries in Postgres.
 - It normalizes `workflow_run` events into pipeline runs.
 - It displays recent runs on the dashboard.
-- Failed runs can be enriched with GitHub job/step evidence and GPT-5.6 diagnosis.
-- Discord alerts are optional.
+- Failed runs are analyzed automatically, and any stored run can request a bounded
+  on-demand analysis from its canonical server-side record.
+- Slack alerts are optional.
 
 ### 1.2 Is it limited to one repository?
 
@@ -131,7 +132,8 @@ Explain what Stack Overlord does:
 
 - Listens to GitHub workflow results.
 - Stores factual CI/CD state.
-- Uses GPT-5.6 only to explain verified failures.
+- Uses the OpenAI API only to interpret already-verified pipeline records, with
+  automatic analysis limited to failures.
 - Keeps GitHub as the source of truth.
 
 ### 5.2 Choose connection method

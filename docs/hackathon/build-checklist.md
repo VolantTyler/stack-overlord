@@ -16,7 +16,7 @@ Last refreshed from the Devpost Hackathons plugin: July 16, 2026.
 - [x] GitHub failed job/step evidence enrichment implemented.
 - [x] Slack-native failure notification implemented.
 - [x] Responsive desktop and mobile dashboard implemented.
-- [x] Clickable failure diagnosis and recommendations implemented.
+- [x] Expandable per-row analysis and featured latest-failure recommendations implemented.
 - [x] Deterministic replay mode implemented.
 - [x] README setup and environment instructions written.
 - [x] Lint passes.
