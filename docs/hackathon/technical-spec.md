@@ -8,8 +8,8 @@ Cognitive Bridge sandbox
   -> Next.js route handler on Vercel
   -> Postgres event ledger and normalized workflow run
   -> GitHub Actions job/step evidence
-  -> GPT-5.6 structured diagnosis
-  -> Postgres diagnosis update
+  -> OpenAI structured analysis
+  -> analysis-only Postgres update
   -> Slack Block Kit alert
   -> responsive dashboard
 ```
@@ -34,22 +34,57 @@ Behavior:
 - Store a failed run before evidence enrichment, GPT-5.6, or Slack.
 - Treat diagnosis and notification failures as non-destructive follow-on errors.
 
-### GPT-5.6 diagnosis
+### `POST /api/pipeline-runs/[id]/analysis`
 
-Model: `gpt-5.6` through the Responses API.
+Behavior:
+
+- Validate the id and load the canonical stored run server-side.
+- Require same-origin browser requests.
+- Return the canonical run with every successful analysis response so the client
+  replaces stale status and metadata instead of merging analysis into an old row.
+- Return a current, schema-v2 live analysis without another model call; regenerate
+  legacy Postgres analyses.
+- Return only seeded analysis for demo rows and never send demo data to OpenAI.
+- Return cached live and seeded demo analyses before checking on-demand access.
+- Return `503` when `ANALYSIS_ACCESS_TOKEN` is not configured for a request that
+  would generate a new model response.
+- Require `Authorization: Bearer <ANALYSIS_ACCESS_TOKEN>` for new generation,
+  compare the supplied value in constant time, and return `401` with
+  `requiresAccessToken: true` when it is missing or invalid.
+- Have the browser user enter the shared access key; never expose the server value
+  through server-rendered props or a `NEXT_PUBLIC_` variable.
+- Generate at most one in-flight analysis per run within a server instance.
+- Apply bounded per-client and per-server-instance limits only to new generations;
+  the shared access key remains the primary authorization boundary.
+- Fetch bounded, priority-ranked GitHub job and relevant step records anonymously,
+  without sending the configured GitHub token; disclose when GitHub reports jobs
+  beyond the first 100-record API page.
+- Update only the diagnosis JSON when the stored status and update revision still match.
+- Return `409` rather than attaching a stale analysis after any concurrent run update.
+- Never send another Slack alert from an on-demand request.
+
+### OpenAI analysis
+
+Model: `OPENAI_MODEL`, defaulting to `gpt-5.6`, through the Responses API.
 
 Structured output:
 
 ```text
 summary
 likelyCause
-evidence[]
+evidence[]: server-issued evidence ids
 confidence: low | medium | high
 limitations[]
-recommendations[]: priority, action, verification
+recommendations[]: priority, action, rationale, verification
 ```
 
-The prompt instructs the model to treat supplied status as factual, distinguish evidence from hypotheses, lower confidence when evidence is incomplete, and never claim remediation occurred.
+The prompt treats supplied status as factual, treats repository-controlled strings as
+untrusted data, distinguishes evidence from hypotheses, lowers confidence when context
+is incomplete, and never claims remediation occurred. The server rejects unknown
+evidence ids and records requested/resolved model identifiers, response id, prompt and
+schema versions, an input digest, and the exact bounded context. The structured fields
+have explicit length limits, and the Responses request caps total output at 8,000
+tokens while retaining high verbosity.
 
 ## Data model
 
@@ -64,10 +99,14 @@ Stores workflow/run ID, repository, branch, commit, workflow, deterministic stat
 ## Degraded modes
 
 - No `DATABASE_URL`: render deterministic demo records and accept no durable webhook writes.
-- No `OPENAI_API_KEY`: persist and display failure with diagnosis pending.
-- No `GITHUB_TOKEN`: use unauthenticated evidence for public repositories or continue with webhook metadata for private repositories.
+- No `OPENAI_API_KEY`: persist and display factual runs; show analysis as unavailable.
+- No `ANALYSIS_ACCESS_TOKEN`: keep cached and seeded analyses viewable, but return
+  `503` before any new on-demand model call.
+- No `GITHUB_TOKEN`: automatic analysis uses unauthenticated evidence for public
+  repositories or continues with webhook metadata for private repositories;
+  on-demand evidence is always unauthenticated.
 - No `SLACK_WEBHOOK_URL`: retain dashboard behavior without notification.
-- GitHub evidence unavailable: GPT-5.6 receives the verified run metadata and must lower confidence appropriately.
+- GitHub evidence unavailable: the model receives verified run metadata plus an explicit context-availability limitation.
 
 ## Supported platforms
 

@@ -2,9 +2,10 @@
 
 import Image from "next/image";
 import Link from "next/link";
-import { useMemo, useState } from "react";
+import { type FormEvent, useId, useMemo, useState } from "react";
 import {
   Activity,
+  AlertTriangle,
   Bell,
   Check,
   CheckCircle2,
@@ -17,6 +18,7 @@ import {
   ExternalLink,
   GitBranch,
   GitPullRequest,
+  LoaderCircle,
   Radio,
   RotateCcw,
   ShieldCheck,
@@ -24,8 +26,10 @@ import {
   XCircle,
 } from "lucide-react";
 
+import { demoPipelineRuns } from "@/lib/demo-data";
 import type {
   DashboardSource,
+  Diagnosis,
   PipelineRun,
   PipelineStatus,
 } from "@/lib/pipeline";
@@ -35,6 +39,21 @@ import styles from "./design-preview-dashboard.module.css";
 export type DesignConcept = "a" | "b" | "c";
 
 type Filter = "all" | PipelineStatus;
+
+type AnalysisRequestState = {
+  cached?: boolean;
+  error?: string;
+  requiresAccessToken?: boolean;
+  status: "loading" | "error" | "ready";
+};
+
+type AnalysisApiResponse = {
+  analysis?: Diagnosis;
+  cached?: boolean;
+  error?: string;
+  requiresAccessToken?: boolean;
+  run?: PipelineRun;
+};
 
 const conceptDetails: Record<
   DesignConcept,
@@ -99,6 +118,56 @@ function formatDuration(seconds: number | null) {
   return minutes ? `${minutes}m ${remainder}s` : `${remainder}s`;
 }
 
+function formatEvidenceSource(source: string) {
+  const labels: Record<string, string> = {
+    demo_fixture: "Demo fixture",
+    github_actions_jobs: "GitHub Actions jobs",
+    github_workflow_run: "GitHub workflow run",
+  };
+
+  return labels[source] ?? source.replaceAll("_", " ");
+}
+
+function formatProvenance(
+  diagnosis: Diagnosis,
+) {
+  if (diagnosis.provenance === "openai-api") return "OpenAI API";
+  if (diagnosis.provenance === "demo-fixture") {
+    return "Deterministic demo fixture";
+  }
+  return "Not recorded";
+}
+
+function isDemoFixture(diagnosis: Diagnosis | null) {
+  return diagnosis?.provenance === "demo-fixture";
+}
+
+function analysisProvenanceKind(diagnosis: Diagnosis) {
+  if (diagnosis.provenance === "openai-api") return "openai-api" as const;
+  if (diagnosis.provenance === "demo-fixture") return "demo-fixture" as const;
+  return "legacy-unknown" as const;
+}
+
+function isCurrentAnalysis(diagnosis: Diagnosis | null) {
+  if (!diagnosis?.context || diagnosis.schemaVersion !== 2) return false;
+
+  if (diagnosis.provenance === "demo-fixture") {
+    return diagnosis.fixtureVersion === "demo-fixture-v2";
+  }
+
+  return (
+    diagnosis.provenance === "openai-api" &&
+    diagnosis.promptVersion === "pipeline-analysis-v2"
+  );
+}
+
+const analysisFocusLabels: Record<PipelineStatus, string> = {
+  cancelled: "Cancellation assessment",
+  failure: "Likely cause",
+  running: "Current snapshot",
+  success: "Recorded outcome",
+};
+
 function StatusMark({ status }: { status: PipelineStatus }) {
   const detail = statusDetails[status];
   const Icon = detail.icon;
@@ -155,7 +224,7 @@ function SummaryCard({
   );
 }
 
-function PipelineMap({ failureCount }: { failureCount: number }) {
+function PipelineMap({ analysisCount }: { analysisCount: number }) {
   const stages = [
     {
       icon: GitPullRequest,
@@ -174,9 +243,11 @@ function PipelineMap({ failureCount }: { failureCount: number }) {
     {
       icon: Sparkles,
       number: "03",
-      label: "Diagnose",
-      detail: `${failureCount} failures explained`,
-      state: "Evidence only",
+      label: "Analyze",
+      detail: `${analysisCount} ${
+        analysisCount === 1 ? "analysis" : "analyses"
+      } recorded`,
+      state: "Evidence bounded",
     },
     {
       icon: Bell,
@@ -296,15 +367,551 @@ function RepositoryPicker({
   );
 }
 
+function AnalysisState({
+  featured = false,
+  onAuthorize,
+  onRetry,
+  request,
+  run,
+}: {
+  featured?: boolean;
+  onAuthorize?: (accessToken: string) => void;
+  onRetry?: () => void;
+  request?: AnalysisRequestState;
+  run: PipelineRun;
+}) {
+  const accessTokenId = useId();
+  const accessTokenDescriptionId = `${accessTokenId}-description`;
+  const [accessToken, setAccessToken] = useState("");
+
+  function authorize(event: FormEvent<HTMLFormElement>) {
+    event.preventDefault();
+    const value = accessToken.trim();
+    if (value) onAuthorize?.(value);
+  }
+
+  if (request?.status === "loading") {
+    return (
+      <div
+        className={styles.analysisState}
+        role="status"
+        aria-live="polite"
+      >
+        <LoaderCircle className={styles.loadingIcon} aria-hidden="true" />
+        <div>
+          <h3>Analyzing recorded evidence</h3>
+          <p>
+            The verified {statusDetails[run.status].label.toLowerCase()} state remains
+            unchanged while the server prepares this analysis.
+          </p>
+        </div>
+      </div>
+    );
+  }
+
+  if (request?.status === "error") {
+    return (
+      <div className={`${styles.analysisState} ${styles.analysisError}`} role="alert">
+        <AlertTriangle aria-hidden="true" />
+        <div>
+          <h3>Analysis could not be loaded</h3>
+          <p>{request.error ?? "The analysis request failed unexpectedly."}</p>
+          {request.requiresAccessToken && onAuthorize ? (
+            <form className={styles.analysisAccessForm} onSubmit={authorize}>
+              <label htmlFor={accessTokenId}>Analysis access key</label>
+              <div>
+                <input
+                  id={accessTokenId}
+                  type="password"
+                  autoComplete="off"
+                  aria-describedby={accessTokenDescriptionId}
+                  value={accessToken}
+                  onChange={(event) => setAccessToken(event.target.value)}
+                />
+                <button
+                  className={styles.retryButton}
+                  type="submit"
+                  disabled={!accessToken.trim()}
+                >
+                  <ShieldCheck aria-hidden="true" />
+                  Authorize analysis
+                </button>
+              </div>
+              <small id={accessTokenDescriptionId}>
+                Kept in this browser tab only; it is never added to the pipeline
+                record.
+              </small>
+            </form>
+          ) : onRetry ? (
+            <button className={styles.retryButton} type="button" onClick={onRetry}>
+              <RotateCcw aria-hidden="true" />
+              Retry analysis
+            </button>
+          ) : null}
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.analysisState}>
+      <Sparkles aria-hidden="true" />
+      <div>
+        <h3>Analysis pending</h3>
+        <p>
+          {featured
+            ? "This failure is verified, but no saved AI analysis exists yet. Use its Analyze control in the ledger to request one."
+            : "No saved AI analysis exists for this run yet."}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function AnalysisDetails({
+  analysis,
+  headingLevel,
+  run,
+}: {
+  analysis: Diagnosis;
+  headingLevel: "h3" | "h4";
+  run: PipelineRun;
+}) {
+  const SectionHeading = headingLevel;
+  const contextEvidence = new Map(
+    analysis.context?.evidence.map((item) => [item.id, item]),
+  );
+  const hasRecordedContext = Boolean(analysis.context);
+  const provenanceKind = analysisProvenanceKind(analysis);
+  const fixture = provenanceKind === "demo-fixture";
+  const apiConfirmed = provenanceKind === "openai-api";
+  const provenance = formatProvenance(analysis);
+  const suppliedContextEvidence = analysis.context?.evidence ?? [];
+  const contextEvidenceBreakdown = (
+    [
+      ["github_workflow_run", "workflow-run metadata"],
+      ["github_actions_jobs", "GitHub Actions job/step"],
+      ["demo_fixture", "fixture"],
+    ] as const
+  ).flatMap(([source, label]) => {
+    const count = suppliedContextEvidence.filter(
+      (item) => item.source === source,
+    ).length;
+
+    return count
+      ? [`${count} ${label} ${count === 1 ? "fact" : "facts"}`]
+      : [];
+  });
+  const recommendations = [...analysis.recommendations].sort(
+    (first, second) => first.priority - second.priority,
+  );
+  const supportingEvidence = analysis.evidence.map((reference, index) => {
+    const recordedEvidence = contextEvidence.get(reference);
+
+    if (recordedEvidence) {
+      return {
+        fact: recordedEvidence.fact,
+        key: `${reference}-${index}`,
+        source: formatEvidenceSource(recordedEvidence.source),
+      };
+    }
+
+    return {
+      fact: hasRecordedContext
+        ? `The recorded evidence reference “${reference}” could not be resolved.`
+        : reference,
+      key: `${reference}-${index}`,
+      source: hasRecordedContext ? "Context mismatch" : null,
+    };
+  });
+
+  return (
+    <div className={styles.analysisDetails}>
+      <section className={`${styles.analysisSection} ${styles.analysisSummary}`}>
+        <div className={styles.analysisSectionHeader}>
+          <SectionHeading>
+            {fixture
+              ? "Seeded fixture summary"
+              : apiConfirmed
+                ? "AI summary"
+                : "Saved legacy summary"}
+          </SectionHeading>
+          <span className={styles.confidence}>
+            {analysis.confidence} confidence
+          </span>
+        </div>
+        <p>{analysis.summary}</p>
+      </section>
+
+      <section className={`${styles.analysisSection} ${styles.analysisCause}`}>
+        <SectionHeading>{analysisFocusLabels[run.status]}</SectionHeading>
+        <p>{analysis.likelyCause}</p>
+      </section>
+
+      <section className={styles.analysisSection}>
+        <SectionHeading>Supporting evidence</SectionHeading>
+        <ul className={styles.analysisList}>
+          {supportingEvidence.map((item) => (
+            <li key={item.key}>
+              <ShieldCheck aria-hidden="true" />
+              <span>
+                {item.fact}
+                {item.source && <small>{item.source}</small>}
+              </span>
+            </li>
+          ))}
+        </ul>
+      </section>
+
+      <section className={styles.analysisSection}>
+        <SectionHeading>Recommended next steps</SectionHeading>
+        <ol className={styles.recommendationList}>
+          {recommendations.map((recommendation, index) => (
+            <li
+              key={`${recommendation.priority}-${recommendation.action}-${index}`}
+            >
+              <span className={styles.recommendationPriority}>
+                {recommendation.priority}
+              </span>
+              <div>
+                <strong>{recommendation.action}</strong>
+                {recommendation.rationale && (
+                  <p>
+                    <b>Why:</b> {recommendation.rationale}
+                  </p>
+                )}
+                <p>
+                  <b>Verify:</b> {recommendation.verification}
+                </p>
+              </div>
+            </li>
+          ))}
+        </ol>
+      </section>
+
+      {analysis.limitations.length > 0 && (
+        <section className={`${styles.analysisSection} ${styles.analysisLimitations}`}>
+          <SectionHeading>Limits and unknowns</SectionHeading>
+          <ul className={styles.plainList}>
+            {analysis.limitations.map((limitation, index) => (
+              <li key={`${limitation}-${index}`}>{limitation}</li>
+            ))}
+          </ul>
+        </section>
+      )}
+
+      {analysis.context && (
+        <section className={`${styles.analysisSection} ${styles.analysisContext}`}>
+          <SectionHeading>Context used</SectionHeading>
+          <p className={styles.contextStatus}>
+            <ShieldCheck aria-hidden="true" />
+            {fixture ? "Seeded state" : "GitHub-owned state"}:{" "}
+            {statusDetails[analysis.context.status].label}.{" "}
+            {fixture ? "This fixture supplies" : "The model received"}{" "}
+            {suppliedContextEvidence.length} total evidence{" "}
+            {suppliedContextEvidence.length === 1 ? "fact" : "facts"}
+            {contextEvidenceBreakdown.length
+              ? ` (${contextEvidenceBreakdown.join(", ")}).`
+              : "."}
+          </p>
+          <p>
+            {fixture ? "Fixture evidence" : "GitHub job evidence"} was{" "}
+            {analysis.context.githubEvidenceStatus}.
+            {analysis.context.githubEvidenceNote
+              ? ` ${analysis.context.githubEvidenceNote}`
+              : ""}
+          </p>
+          <details className={styles.contextDisclosure}>
+            <summary>
+              {fixture
+                ? "Show every supplied fixture fact"
+                : "Show every fact supplied to the model"}{" "}
+              ({suppliedContextEvidence.length})
+            </summary>
+            <ul className={styles.analysisList}>
+              {suppliedContextEvidence.map((item) => (
+                <li key={item.id}>
+                  <ShieldCheck aria-hidden="true" />
+                  <span>
+                    {item.fact}
+                    <small>{formatEvidenceSource(item.source)}</small>
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+          {analysis.context.notProvided.length > 0 && (
+            <>
+              <p className={styles.analysisSubheading}>
+                {fixture
+                  ? "Not included in this fixture"
+                  : "Not provided to the model"}
+              </p>
+              <ul className={styles.plainList}>
+                {analysis.context.notProvided.map((item, index) => (
+                  <li key={`${item}-${index}`}>{item}</li>
+                ))}
+              </ul>
+            </>
+          )}
+        </section>
+      )}
+
+      <section className={`${styles.analysisSection} ${styles.analysisTrace}`}>
+        <SectionHeading>{fixture ? "Fixture trace" : "Analysis trace"}</SectionHeading>
+        <dl className={styles.analysisMeta}>
+          {fixture ? (
+            <>
+              <div>
+                <dt>Model call</dt>
+                <dd>None — hand-authored deterministic fixture</dd>
+              </div>
+              <div>
+                <dt>API response</dt>
+                <dd>None</dd>
+              </div>
+            </>
+          ) : apiConfirmed ? (
+            <>
+              <div>
+                <dt>Model reported by API</dt>
+                <dd>{analysis.model || "Not recorded"}</dd>
+              </div>
+              {analysis.requestedModel && (
+                <div>
+                  <dt>Model requested</dt>
+                  <dd>{analysis.requestedModel}</dd>
+                </div>
+              )}
+              <div>
+                <dt>Response</dt>
+                <dd>{analysis.responseId ?? "Not recorded"}</dd>
+              </div>
+            </>
+          ) : (
+            <>
+              <div>
+                <dt>Recorded model label</dt>
+                <dd>{analysis.model || "Not recorded"}</dd>
+              </div>
+              <div>
+                <dt>Recorded response label</dt>
+                <dd>{analysis.responseId ?? "Not recorded"}</dd>
+              </div>
+            </>
+          )}
+          <div>
+            <dt>{fixture ? "Fixture authored" : "Generated"}</dt>
+            <dd>{formatTimestamp(analysis.generatedAt)}</dd>
+          </div>
+          <div>
+            <dt>Provenance</dt>
+            <dd>{provenance}</dd>
+          </div>
+          {analysis.schemaVersion !== undefined && (
+            <div>
+              <dt>Schema</dt>
+              <dd>v{analysis.schemaVersion}</dd>
+            </div>
+          )}
+          {analysis.promptVersion && (
+            <div>
+              <dt>Prompt</dt>
+              <dd>{analysis.promptVersion}</dd>
+            </div>
+          )}
+          {analysis.fixtureVersion && (
+            <div>
+              <dt>Fixture version</dt>
+              <dd>{analysis.fixtureVersion}</dd>
+            </div>
+          )}
+          {analysis.inputDigest && (
+            <div>
+              <dt>Input digest</dt>
+              <dd>{analysis.inputDigest}</dd>
+            </div>
+          )}
+        </dl>
+      </section>
+    </div>
+  );
+}
+
+function PipelineRunItem({
+  expanded,
+  onAuthorizeAnalysis,
+  onRetryAnalysis,
+  onToggleAnalysis,
+  request,
+  run,
+}: {
+  expanded: boolean;
+  onAuthorizeAnalysis: (run: PipelineRun, accessToken: string) => void;
+  onRetryAnalysis: (run: PipelineRun) => void;
+  onToggleAnalysis: (run: PipelineRun) => void;
+  request?: AnalysisRequestState;
+  run: PipelineRun;
+}) {
+  const generatedId = useId();
+  const controlId = `analysis-control-${generatedId}`;
+  const headingId = `analysis-heading-${generatedId}`;
+  const regionId = `analysis-region-${generatedId}`;
+  const loading = request?.status === "loading";
+  const hasAnalysis = Boolean(run.diagnosis);
+  const fixture = isDemoFixture(run.diagnosis);
+  const apiConfirmed = run.diagnosis?.provenance === "openai-api";
+  const currentAnalysis = isCurrentAnalysis(run.diagnosis);
+
+  return (
+    <article className={styles.runItem} role="listitem">
+      <div className={styles.runRow}>
+        <div className={styles.runStatus}>
+          <StatusMark status={run.status} />
+        </div>
+        <div className={styles.runWorkflow}>
+          <strong>{run.workflowName}</strong>
+          <span>{run.repository}</span>
+        </div>
+        <div className={styles.runBranch}>
+          <GitBranch aria-hidden="true" />
+          <span>{run.branch}</span>
+        </div>
+        <div className={styles.runCommit}>
+          <strong>{shortSha(run.commitSha)}</strong>
+          <span>{run.commitMessage}</span>
+        </div>
+        <div className={styles.runTime}>
+          <strong>{formatDuration(run.durationSeconds)}</strong>
+          <span>{formatTimestamp(run.startedAt)}</span>
+        </div>
+        <div className={styles.runActions}>
+          <button
+            className={styles.analyzeButton}
+            id={controlId}
+            type="button"
+            aria-controls={regionId}
+            aria-expanded={expanded}
+            aria-label={`${expanded ? "Hide analysis for" : "Analyze"} ${
+              run.workflowName
+            } run ${shortSha(run.commitSha)} on ${run.repository}`}
+            onClick={() => onToggleAnalysis(run)}
+          >
+            {loading ? (
+              <LoaderCircle className={styles.loadingIcon} aria-hidden="true" />
+            ) : (
+              <Sparkles aria-hidden="true" />
+            )}
+            {loading ? "Analyzing…" : expanded ? "Hide" : "Analyze"}
+          </button>
+          <a
+            className={styles.openRun}
+            href={run.runUrl}
+            target="_blank"
+            rel="noreferrer"
+            aria-label={`Open ${run.workflowName} workflow on GitHub in a new tab`}
+          >
+            <ExternalLink aria-hidden="true" />
+            <span>Open</span>
+          </a>
+        </div>
+      </div>
+      {expanded && (
+        <section
+          className={styles.runAnalysis}
+          id={regionId}
+          role="region"
+          aria-busy={loading}
+          aria-labelledby={headingId}
+        >
+          <div className={styles.analysisHeader}>
+            <div>
+              <p className={styles.kicker}>
+                {!hasAnalysis
+                  ? "On-demand analysis"
+                  : fixture
+                  ? "Deterministic demo fixture"
+                  : apiConfirmed
+                    ? "Evidence-bounded AI layer"
+                    : "Saved legacy analysis"}
+              </p>
+              <h3 id={headingId}>
+                {!hasAnalysis
+                  ? "Analysis"
+                  : fixture
+                  ? "Seeded analysis"
+                  : apiConfirmed
+                    ? "AI analysis"
+                    : "Saved analysis"}{" "}
+                for{" "}
+                {run.workflowName}
+              </h3>
+              <p>
+                Run {shortSha(run.commitSha)} · GitHub status remains{" "}
+                {statusDetails[run.status].label.toLowerCase()}
+              </p>
+            </div>
+            {run.diagnosis && !currentAnalysis && request?.status !== "loading" ? (
+              <span className={styles.cachedBadge}>Legacy analysis</span>
+            ) : request?.status === "ready" && request.cached ? (
+              <span className={styles.cachedBadge}>Cached analysis</span>
+            ) : null}
+          </div>
+          {run.diagnosis ? (
+            <>
+              {request &&
+                request.status !== "ready" &&
+                !currentAnalysis && (
+                  <AnalysisState
+                    onAuthorize={(accessToken) =>
+                      onAuthorizeAnalysis(run, accessToken)
+                    }
+                    onRetry={() => onRetryAnalysis(run)}
+                    request={request}
+                    run={run}
+                  />
+                )}
+              <AnalysisDetails
+                analysis={run.diagnosis}
+                headingLevel="h4"
+                run={run}
+              />
+            </>
+          ) : (
+            <AnalysisState
+              onAuthorize={(accessToken) =>
+                onAuthorizeAnalysis(run, accessToken)
+              }
+              onRetry={() => onRetryAnalysis(run)}
+              request={request}
+              run={run}
+            />
+          )}
+        </section>
+      )}
+    </article>
+  );
+}
+
 function PipelineLedger({
+  expandedRunId,
   filter,
   onFilterChange,
+  onAuthorizeAnalysis,
+  onRetryAnalysis,
+  onToggleAnalysis,
   repositoryLabel,
+  requestStates,
   runs,
 }: {
+  expandedRunId: string | null;
   filter: Filter;
   onFilterChange: (value: Filter) => void;
+  onAuthorizeAnalysis: (run: PipelineRun, accessToken: string) => void;
+  onRetryAnalysis: (run: PipelineRun) => void;
+  onToggleAnalysis: (run: PipelineRun) => void;
   repositoryLabel?: string;
+  requestStates: Record<string, AnalysisRequestState | undefined>;
   runs: PipelineRun[];
 }) {
   const viewKey = `${repositoryLabel ?? "all"}:${filter}`;
@@ -331,8 +938,8 @@ function PipelineLedger({
           <h2 id="ledger-heading">Recent pipeline runs</h2>
           <p>
             {repositoryLabel
-              ? `Showing verified workflow runs for ${repositoryLabel}.`
-              : "Select a view, then open the verified GitHub workflow for evidence."}
+              ? `Showing verified workflow runs for ${repositoryLabel}. Analyze any row without changing its GitHub-owned state.`
+              : "Analyze any row, then open its verified GitHub workflow for the source evidence."}
           </p>
         </div>
         <div className={styles.filters} aria-label="Filter pipeline runs">
@@ -353,37 +960,15 @@ function PipelineLedger({
       <div className={styles.runList}>
         <div id="pipeline-run-list" role="list" aria-label="Pipeline runs">
           {visibleRuns.map((run) => (
-            <article className={styles.runRow} key={run.id} role="listitem">
-              <div className={styles.runStatus}>
-                <StatusMark status={run.status} />
-              </div>
-              <div className={styles.runWorkflow}>
-                <strong>{run.workflowName}</strong>
-                <span>{run.repository}</span>
-              </div>
-              <div className={styles.runBranch}>
-                <GitBranch aria-hidden="true" />
-                <span>{run.branch}</span>
-              </div>
-              <div className={styles.runCommit}>
-                <strong>{shortSha(run.commitSha)}</strong>
-                <span>{run.commitMessage}</span>
-              </div>
-              <div className={styles.runTime}>
-                <strong>{formatDuration(run.durationSeconds)}</strong>
-                <span>{formatTimestamp(run.startedAt)}</span>
-              </div>
-              <a
-                className={styles.openRun}
-                href={run.runUrl}
-                target="_blank"
-                rel="noreferrer"
-                aria-label={`Open ${run.workflowName} workflow on GitHub in a new tab`}
-              >
-                <ExternalLink aria-hidden="true" />
-                <span>Open</span>
-              </a>
-            </article>
+            <PipelineRunItem
+              expanded={expandedRunId === run.id}
+              key={run.id}
+              onAuthorizeAnalysis={onAuthorizeAnalysis}
+              onRetryAnalysis={onRetryAnalysis}
+              onToggleAnalysis={onToggleAnalysis}
+              request={requestStates[run.id]}
+              run={run}
+            />
           ))}
         </div>
         {additionalRunCount > 0 && (
@@ -421,8 +1006,22 @@ function PipelineLedger({
   );
 }
 
-function DiagnosisPanel({ run }: { run: PipelineRun | undefined }) {
-  if (!run?.diagnosis) return null;
+function DiagnosisPanel({
+  onAuthorize,
+  onRetry,
+  request,
+  run,
+}: {
+  onAuthorize?: (accessToken: string) => void;
+  onRetry?: () => void;
+  request?: AnalysisRequestState;
+  run: PipelineRun | undefined;
+}) {
+  if (!run) return null;
+  const hasAnalysis = Boolean(run.diagnosis);
+  const fixture = isDemoFixture(run.diagnosis);
+  const apiConfirmed = run.diagnosis?.provenance === "openai-api";
+  const currentAnalysis = isCurrentAnalysis(run.diagnosis);
 
   return (
     <aside className={styles.diagnosis} aria-labelledby="diagnosis-heading">
@@ -431,27 +1030,58 @@ function DiagnosisPanel({ run }: { run: PipelineRun | undefined }) {
           <Sparkles aria-hidden="true" />
         </span>
         <div>
-          <p className={styles.kicker}>Optional AI layer</p>
-          <h2 id="diagnosis-heading">Latest failure diagnosis</h2>
+          <p className={styles.kicker}>
+            {!hasAnalysis
+              ? "Featured analysis pending"
+              : fixture
+              ? "Featured analysis fixture"
+              : apiConfirmed
+                ? "Featured AI analysis"
+                : "Featured legacy analysis"}
+          </p>
+          <h2 id="diagnosis-heading">Latest failure analysis</h2>
         </div>
       </div>
-      <div className={styles.diagnosisBody}>
-        <div>
-          <p className={styles.diagnosisLabel}>Verified failure</p>
-          <h3>{run.commitMessage}</h3>
-          <StatusMark status={run.status} />
-        </div>
-        <div>
-          <p className={styles.diagnosisLabel}>GPT-5.6 summary</p>
-          <p>{run.diagnosis.summary}</p>
-        </div>
-        <div>
-          <p className={styles.diagnosisLabel}>Next recovery move</p>
-          <p>{run.diagnosis.recommendations[0]?.action}</p>
-        </div>
+      <div className={styles.featuredRun}>
+        <p className={styles.diagnosisLabel}>Verified failure</p>
+        <h3>{run.commitMessage}</h3>
+        <StatusMark status={run.status} />
       </div>
+      {run.diagnosis ? (
+        <>
+          {request && request.status !== "ready" && !currentAnalysis && (
+            <AnalysisState
+              featured
+              onAuthorize={onAuthorize}
+              onRetry={onRetry}
+              request={request}
+              run={run}
+            />
+          )}
+          <AnalysisDetails
+            analysis={run.diagnosis}
+            headingLevel="h3"
+            run={run}
+          />
+        </>
+      ) : (
+        <AnalysisState
+          featured
+          onAuthorize={onAuthorize}
+          onRetry={onRetry}
+          request={request}
+          run={run}
+        />
+      )}
       <p className={styles.diagnosisNote}>
-        Explanation is visually separated from the GitHub-owned conclusion.
+        GitHub owns the pipeline conclusion.{" "}
+        {!hasAnalysis
+          ? "No saved analysis exists yet; use Analyze in the ledger to request one."
+          : fixture
+          ? "This hand-authored fixture demonstrates the analysis contract without claiming an API response."
+          : apiConfirmed
+            ? "AI output is separately labeled, evidence-bounded, and never changes that state."
+            : "This saved analysis predates recorded provenance. Use Analyze in the ledger to request current API-confirmed output."}
       </p>
     </aside>
   );
@@ -472,6 +1102,10 @@ export function DesignPreviewDashboard({
 }) {
   const [runs, setRuns] = useState(initialRuns);
   const [filter, setFilter] = useState<Filter>("all");
+  const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
+  const [requestStates, setRequestStates] = useState<
+    Record<string, AnalysisRequestState | undefined>
+  >({});
   const [selectedRepository, setSelectedRepository] = useState(
     repositoryLabel ?? "all",
   );
@@ -522,15 +1156,125 @@ export function DesignPreviewDashboard({
   );
 
   const latestFailure = scopedRuns.find((run) => run.status === "failure");
+  const analysisCount = scopedRuns.filter((run) => Boolean(run.diagnosis)).length;
 
   function selectRepository(repository: string) {
     setSelectedRepository(repository);
     setFilter("all");
+    setExpandedRunId(null);
+  }
+
+  function changeFilter(value: Filter) {
+    setFilter(value);
+    setExpandedRunId(null);
+  }
+
+  async function requestAnalysis(run: PipelineRun, accessToken?: string) {
+    if (requestStates[run.id]?.status === "loading") return;
+
+    const submittedAccessToken = accessToken?.trim();
+    if (submittedAccessToken) {
+      try {
+        sessionStorage.setItem(
+          "stack-overlord-analysis-access-token",
+          submittedAccessToken,
+        );
+      } catch {
+        // The submitted token still applies to this request when storage is blocked.
+      }
+    }
+    let storedAccessToken = "";
+    try {
+      storedAccessToken =
+        sessionStorage.getItem("stack-overlord-analysis-access-token") ?? "";
+    } catch {
+      // Some privacy modes disable session storage; the form remains usable.
+    }
+    const savedAccessToken = submittedAccessToken ?? storedAccessToken;
+    const headers: Record<string, string> = { accept: "application/json" };
+    if (savedAccessToken) {
+      headers.authorization = `Bearer ${savedAccessToken}`;
+    }
+
+    setRequestStates((current) => ({
+      ...current,
+      [run.id]: { status: "loading" },
+    }));
+
+    try {
+      const response = await fetch(
+        `/api/pipeline-runs/${encodeURIComponent(run.id)}/analysis`,
+        {
+          method: "POST",
+          headers,
+        },
+      );
+      const payload = (await response.json()) as AnalysisApiResponse;
+
+      if (
+        !response.ok ||
+        !payload.analysis ||
+        !payload.run ||
+        payload.run.id !== run.id
+      ) {
+        setRequestStates((current) => ({
+          ...current,
+          [run.id]: {
+            error:
+              payload.error ??
+              (response.ok
+                ? "The analysis response did not include the current canonical run."
+                : `Analysis request failed with status ${response.status}.`),
+            requiresAccessToken: Boolean(payload.requiresAccessToken),
+            status: "error",
+          },
+        }));
+        return;
+      }
+
+      const canonicalRun = payload.run;
+      setRuns((current) =>
+        current.map((item) =>
+          item.id === run.id ? canonicalRun : item,
+        ),
+      );
+      setRequestStates((current) => ({
+        ...current,
+        [run.id]: {
+          cached: Boolean(payload.cached),
+          requiresAccessToken: false,
+          status: "ready",
+        },
+      }));
+    } catch (error) {
+      setRequestStates((current) => ({
+        ...current,
+        [run.id]: {
+          error:
+            error instanceof Error
+              ? error.message
+              : "The analysis request failed unexpectedly.",
+          status: "error",
+        },
+      }));
+    }
+  }
+
+  function toggleAnalysis(run: PipelineRun) {
+    if (expandedRunId === run.id) {
+      setExpandedRunId(null);
+      return;
+    }
+
+    setExpandedRunId(run.id);
+    if (!isCurrentAnalysis(run.diagnosis)) void requestAnalysis(run);
   }
 
   function replayFailure() {
-    const template = latestFailure;
-    if (!template) return;
+    const template = demoPipelineRuns.find(
+      (run) => run.status === "failure" && run.diagnosis,
+    );
+    if (!template?.diagnosis) return;
 
     const now = new Date();
     const replay: PipelineRun = {
@@ -540,11 +1284,18 @@ export function DesignPreviewDashboard({
       commitMessage: "demo: replay missing sandbox credential",
       startedAt: new Date(now.getTime() - 94_000).toISOString(),
       completedAt: now.toISOString(),
+      durationSeconds: 94,
+      diagnosis: {
+        ...template.diagnosis,
+        provenance: "demo-fixture",
+        responseId: null,
+      },
       isReplay: true,
     };
 
     setRuns((current) => [replay, ...current]);
     setFilter("all");
+    setExpandedRunId(null);
   }
 
   return (
@@ -652,22 +1403,41 @@ export function DesignPreviewDashboard({
           />
         </section>
 
-        <PipelineMap failureCount={counts.failure} />
+        <PipelineMap analysisCount={analysisCount} />
 
         <div className={styles.lowerGrid}>
           <PipelineLedger
+            expandedRunId={expandedRunId}
             filter={filter}
-            onFilterChange={setFilter}
+            onFilterChange={changeFilter}
+            onAuthorizeAnalysis={(run, accessToken) =>
+              void requestAnalysis(run, accessToken)
+            }
+            onRetryAnalysis={(run) => void requestAnalysis(run)}
+            onToggleAnalysis={toggleAnalysis}
             repositoryLabel={activeRepositoryLabel}
+            requestStates={requestStates}
             runs={filteredRuns}
           />
-          <DiagnosisPanel run={latestFailure} />
+          <DiagnosisPanel
+            onAuthorize={
+              latestFailure
+                ? (accessToken) =>
+                    void requestAnalysis(latestFailure, accessToken)
+                : undefined
+            }
+            onRetry={
+              latestFailure ? () => void requestAnalysis(latestFailure) : undefined
+            }
+            request={latestFailure ? requestStates[latestFailure.id] : undefined}
+            run={latestFailure}
+          />
         </div>
 
         <footer className={styles.footer}>
           <p>
-            GitHub webhook conclusions set pipeline state. GPT-5.6 explains
-            failures; it never invents them.
+            GitHub webhook conclusions set pipeline state. Provenance-labeled
+            analysis explains individual runs without changing those facts.
           </p>
           <span>
             {previewMode

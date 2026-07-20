@@ -69,19 +69,25 @@ Use `npm run demo:deployment:trigger -- --result success --dry-run` or `npm run 
 
 On the dashboard, point out the status summary, responsive ledger, source badge, branch, commit, timestamps, and duration. Filter between **All**, **Failed**, **Running**, and **Passed**. Explain that the text labels and icons communicate state independently of color.
 
-In zero-configuration mode, the fixture ledger already contains succeeded, failed, and running workflows. Select **Replay failure** to add and immediately open a fresh deterministic failure.
+In zero-configuration mode, the fixture ledger already contains succeeded, failed, and running workflows. Select **Replay sandbox failure** to add a fresh deterministic failure.
 
-### 2. Inspect an AI-assisted recovery plan
+### 2. Inspect the analysis contract
 
-Choose **Diagnose** on the first failed workflow. Show:
+Choose **Analyze** on the first failed workflow. Show:
 
-1. **Verified state** is explicitly attributed to the GitHub workflow conclusion.
-2. GPT-5.6 provides a summary and likely cause, but does not change that state.
-3. Supporting evidence is separated from limitations.
-4. Each prioritized action includes a concrete verification step.
-5. Model, response id, and generation time provide traceability.
+1. **Seeded state** is explicitly attributed to the deterministic demo fixture.
+2. The hand-authored fixture summary and cause hypothesis do not change that state or claim a live model call.
+3. Supporting evidence is linked to fixture evidence ids and separated from limitations.
+4. Each prioritized action includes a rationale and concrete verification step.
+5. The trace says **Model call: None** and **API response: None**, while preserving fixture version and authorship time.
+6. The context disclosure names both the seeded metadata used and the logs, YAML, diff, artifacts, and provider records that were not included.
 
-The second fixture failure demonstrates a different, medium-confidence quota diagnosis.
+The featured latest-failure analysis remains in place while any row expands inline. The
+second fixture failure demonstrates a different, medium-confidence quota diagnosis.
+Every deterministic demo row has the same clearly labeled fixture treatment. For a
+real stored run, enter the configured analysis access key when prompted; the server
+then reloads the canonical run, records the requested and API-reported models, and
+never trusts browser-supplied status or evidence.
 
 ### 3. Replay signed webhook states
 
@@ -96,9 +102,18 @@ npm run demo:webhook -- cancelled
 npm run demo:webhook -- failure
 ```
 
-The `push` event demonstrates correlation telemetry: it is accepted and persisted, but does not invent a workflow row. The remaining events demonstrate GitHub-derived running, successful, cancelled, and failed states. Failure telemetry is saved before optional GitHub evidence collection, GPT-5.6 diagnosis, or Slack notification.
+The `push` event demonstrates correlation telemetry: it is accepted and persisted, but does not invent a workflow row. The remaining events demonstrate GitHub-derived running, successful, cancelled, and failed states. Failure telemetry is saved before optional GitHub evidence collection, OpenAI Responses analysis, or Slack notification.
 
-Without `OPENAI_API_KEY`, the failed run remains visible with **Diagnosis pending**. Add a valid key and optionally `GITHUB_TOKEN` to demonstrate live structured diagnosis and job-step evidence. Add `SLACK_WEBHOOK_URL` for an incoming webhook configured for `#stack-overlord-alerts` to demonstrate the Block Kit failure alert. Every verified failure is reported without mentions. These integrations are optional and lazily initialized.
+Without `OPENAI_API_KEY`, every factual run remains visible and each deterministic
+demo row expands a hand-authored fixture labeled with **Model call: None** and
+**API response: None**. A real stored row without current analysis reports that live
+analysis is unavailable. Add a valid key and optionally `GITHUB_TOKEN` to demonstrate
+live automatic failure analysis and authenticated job-step evidence. On-demand row
+analysis deliberately fetches public GitHub evidence without the configured token.
+Add `SLACK_WEBHOOK_URL` for an incoming webhook configured for
+`#stack-overlord-alerts` to demonstrate the Block Kit failure alert. Every verified
+failure is reported without mentions. These integrations are optional and lazily
+initialized.
 
 ### 4. Demonstrate security and idempotency
 

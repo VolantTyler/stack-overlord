@@ -106,6 +106,44 @@ test("dashboard controls have accessible names and keyboard tab stops", async ({
   expect(focusedElements.some((label) => label.includes("All runs"))).toBe(true);
 });
 
+test("row analysis disclosures expose unique relationships and keyboard state", async ({
+  page,
+}) => {
+  await gotoDashboard(page);
+
+  const analyzeButtons = page.getByRole("button", { name: /^Analyze / });
+  const buttonCount = await analyzeButtons.count();
+  expect(buttonCount).toBeGreaterThan(0);
+
+  const controlledRegionIds = await analyzeButtons.evaluateAll((buttons) =>
+    buttons.map((button) => button.getAttribute("aria-controls")),
+  );
+  expect(controlledRegionIds.every(Boolean)).toBe(true);
+  expect(new Set(controlledRegionIds).size).toBe(buttonCount);
+
+  const firstAnalyzeButton = analyzeButtons.first();
+  const regionId = await firstAnalyzeButton.getAttribute("aria-controls");
+  expect(regionId).toBeTruthy();
+  const stableControl = page.locator(`[aria-controls="${regionId}"]`);
+  const region = page.locator(`[id="${regionId}"]`);
+
+  await expect(stableControl).toHaveAttribute("aria-expanded", "false");
+  await stableControl.focus();
+  await expect(stableControl).toBeFocused();
+  await page.keyboard.press("Enter");
+
+  await expect(stableControl).toHaveAttribute("aria-expanded", "true");
+  await expect(stableControl).toBeFocused();
+  await expect(region).toHaveAttribute("role", "region");
+  const headingId = await region.getAttribute("aria-labelledby");
+  expect(headingId).toBeTruthy();
+  await expect(page.locator(`[id="${headingId}"]`)).toBeVisible();
+
+  await page.keyboard.press("Space");
+  await expect(stableControl).toHaveAttribute("aria-expanded", "false");
+  await expect(region).toHaveCount(0);
+});
+
 test("design preview palettes keep body and muted text above WCAG AA contrast", async ({
   page,
 }) => {

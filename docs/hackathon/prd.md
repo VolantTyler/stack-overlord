@@ -14,12 +14,12 @@ Modern developers delegate implementation, review, and repository work to agents
 
 ## Product
 
-Stack Overlord is a commit-to-deployment command center. Deterministic application code records GitHub's factual workflow conclusion. When a workflow fails, GPT-5.6 analyzes correlated job and failed-step evidence and returns a structured diagnosis with confidence, limitations, and verifiable recovery actions.
+Stack Overlord is a commit-to-deployment command center. Deterministic application code records GitHub's factual workflow conclusion. Failures are analyzed automatically, and a developer can request a bounded OpenAI analysis for any ledger row without giving the model authority over pipeline state.
 
 Codex and GPT-5.6 have distinct roles:
 
 - **Codex:** architecture, implementation, tests, debugging, review, responsive browser verification, and deployment preparation during Build Week.
-- **GPT-5.6:** runtime interpretation of already-verified failures inside the finished product.
+- **GPT-5.6 API model:** runtime interpretation of already-verified pipeline records inside the finished product.
 
 ## User stories
 
@@ -33,7 +33,7 @@ As a developer reviewing delivery history, I want a linear record of commit, wor
 
 ### Actionable diagnosis
 
-As a developer opening a failure, I want supporting evidence and ordered recovery steps so I can act without rereading an entire workflow log.
+As a developer opening any pipeline row, I want a clearly sourced interpretation, limitations, and ordered verification steps without confusing AI output with GitHub's conclusion.
 
 ## Functional requirements
 
@@ -41,12 +41,13 @@ As a developer opening a failure, I want supporting evidence and ordered recover
 2. Deduplicate deliveries by GitHub delivery ID.
 3. Persist telemetry before optional model or notification work.
 4. Map GitHub workflow status and conclusion deterministically.
-5. Request GPT-5.6 analysis only for verified failures.
+5. Request analysis automatically only for verified failures and on demand for any canonical stored run.
 6. Preserve a failure when diagnosis or notification is unavailable.
 7. Show success/failure/running/cancelled summaries and a filterable ledger.
-8. Show diagnosis details in a desktop side sheet and mobile full-width sheet.
+8. Give every row an accessible expandable analysis and keep the latest failure featured.
 9. Communicate status with text and icons, not color alone.
 10. Provide deterministic replay data for reliable judging and recording.
+11. Disclose model provenance, exact evidence scope, missing context, and response trace metadata.
 
 ## Demo flow
 

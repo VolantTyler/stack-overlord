@@ -59,6 +59,23 @@ test("renders the dashboard and captures a full-page screenshot", async ({
     page.getByRole("heading", { level: 2, name: "Recent pipeline runs" }),
   ).toBeVisible();
 
+  const cachedAnalyzeButton = page.getByRole("button", {
+    name: /^Analyze .* run 8f73b6a /,
+  });
+  const cachedRegionId = await cachedAnalyzeButton.getAttribute("aria-controls");
+  expect(cachedRegionId).toBeTruthy();
+  const cachedControl = page.locator(`[aria-controls="${cachedRegionId}"]`);
+  await cachedControl.click();
+  await expect(cachedControl).toHaveAttribute("aria-expanded", "true");
+  await expect(page.locator(`[id="${cachedRegionId}"]`)).toBeVisible();
+  const horizontalOverflow = await page.evaluate(
+    () => document.documentElement.scrollWidth - window.innerWidth,
+  );
+  expect(
+    horizontalOverflow,
+    "Expanded analysis should not create horizontal page overflow.",
+  ).toBeLessThanOrEqual(1);
+
   const screenshotDirectory = path.join(
     process.cwd(),
     "artifacts",
@@ -69,10 +86,114 @@ test("renders the dashboard and captures a full-page screenshot", async ({
     path: path.join(screenshotDirectory, `${testInfo.project.name}.png`),
     fullPage: true,
     animations: "disabled",
-    style: "nextjs-portal { display: none !important; }",
+    style:
+      'nextjs-portal, a[href="#pipeline-ledger"] { display: none !important; }',
   });
 
   expect(browserErrors, "The page emitted browser errors.").toEqual([]);
+});
+
+test("expands saved row analyses one at a time without moving the featured failure", async ({
+  page,
+}) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Recent pipeline runs" }),
+  ).toBeVisible();
+
+  const analyzeButtons = page.getByRole("button", { name: /^Analyze / });
+  expect(await analyzeButtons.count()).toBeGreaterThan(1);
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Latest failure analysis" }),
+  ).toBeVisible();
+
+  const latestFailureButton = page.getByRole("button", {
+    name: /^Analyze .* run 8f73b6a /,
+  });
+  const firstRegionId = await latestFailureButton.getAttribute("aria-controls");
+  expect(firstRegionId).toBeTruthy();
+  const latestFailureControl = page.locator(`[aria-controls="${firstRegionId}"]`);
+  const firstRegion = page.locator(`[id="${firstRegionId}"]`);
+  await latestFailureControl.click();
+
+  await expect(latestFailureControl).toHaveAttribute("aria-expanded", "true");
+  await expect(firstRegion).toBeVisible();
+  await expect(
+    firstRegion.getByRole("heading", { name: "Supporting evidence" }),
+  ).toBeVisible();
+  await expect(
+    firstRegion.getByRole("heading", { name: "Seeded fixture summary" }),
+  ).toBeVisible();
+  await expect(
+    firstRegion.getByRole("heading", { name: "Recommended next steps" }),
+  ).toBeVisible();
+  await expect(
+    firstRegion.getByText("Deterministic demo fixture", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(
+    firstRegion.getByText("None — hand-authored deterministic fixture"),
+  ).toBeVisible();
+  await expect(firstRegion.getByText("gpt-5.6", { exact: true })).toHaveCount(0);
+
+  const olderFailureButton = page.getByRole("button", {
+    name: /^Analyze .* run ef238f4 /,
+  });
+  const olderRegionId = await olderFailureButton.getAttribute("aria-controls");
+  expect(olderRegionId).toBeTruthy();
+  const olderFailureControl = page.locator(`[aria-controls="${olderRegionId}"]`);
+  await olderFailureControl.click();
+
+  await expect(latestFailureControl).toHaveAttribute("aria-expanded", "false");
+  await expect(firstRegion).toHaveCount(0);
+  await expect(page.locator(`[id="${olderRegionId}"]`)).toBeVisible();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Latest failure analysis" }),
+  ).toBeVisible();
+});
+
+test("same-origin row analysis requests can load a seeded result", async ({
+  page,
+}) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  const result = await page.evaluate(async () => {
+    const response = await fetch(
+      "/api/pipeline-runs/demo-run-7193/analysis",
+      { method: "POST" },
+    );
+
+    return {
+      body: (await response.json()) as {
+        analysis?: {
+          model?: string;
+          provenance?: string;
+          responseId?: string | null;
+        };
+        cached?: boolean;
+        run?: {
+          diagnosis?: { provenance?: string } | null;
+          id?: string;
+          status?: string;
+        };
+      },
+      status: response.status,
+    };
+  });
+
+  expect(result.status).toBe(200);
+  expect(result.body).toMatchObject({
+    analysis: {
+      model: "not-applicable",
+      provenance: "demo-fixture",
+      responseId: null,
+    },
+    cached: true,
+    run: {
+      diagnosis: { provenance: "demo-fixture" },
+      id: "demo-run-7193",
+      status: "success",
+    },
+  });
 });
 
 test("repository controls meet WCAG AA contrast", async ({ page }) => {

@@ -1,7 +1,12 @@
 import { createHmac, timingSafeEqual } from "node:crypto";
 import { z } from "zod";
 
-import type { PipelineRun, PipelineStatus } from "@/lib/pipeline";
+import type {
+  AnalysisEvidence,
+  PipelineRun,
+  PipelineStatus,
+  WorkflowEvidence,
+} from "@/lib/pipeline";
 
 const workflowRunPayloadSchema = z.object({
   action: z.string(),
@@ -103,14 +108,19 @@ export function webhookMetadata(payload: unknown) {
 }
 
 const workflowJobsSchema = z.object({
+  total_count: z.number().int().nonnegative(),
   jobs: z.array(
     z.object({
+      id: z.number(),
       name: z.string(),
       status: z.string(),
       conclusion: z.string().nullable(),
+      started_at: z.string().nullable().optional(),
+      completed_at: z.string().nullable().optional(),
       steps: z
         .array(
           z.object({
+            number: z.number(),
             name: z.string(),
             status: z.string(),
             conclusion: z.string().nullable(),
@@ -121,14 +131,64 @@ const workflowJobsSchema = z.object({
   ),
 });
 
-export async function fetchWorkflowEvidence(run: PipelineRun) {
+function workflowEvidenceUnavailable(note: string): WorkflowEvidence {
+  return {
+    items: [],
+    status: "unavailable",
+    note,
+  };
+}
+
+function jobFact(job: z.infer<typeof workflowJobsSchema>["jobs"][number]) {
+  const conclusion = job.conclusion
+    ? ` and conclusion "${job.conclusion}"`
+    : " and no conclusion";
+  const timing =
+    job.started_at && job.completed_at
+      ? ` It ran from ${job.started_at} to ${job.completed_at}.`
+      : "";
+
+  return `GitHub Actions job "${job.name}" has status "${job.status}"${conclusion}.${timing}`;
+}
+
+type WorkflowEvidenceFetchOptions = {
+  authentication?: "configured" | "anonymous";
+};
+
+type RankedEvidence = {
+  evidence: AnalysisEvidence;
+  priority: number;
+  order: number;
+};
+
+const failureConclusions = new Set([
+  "action_required",
+  "failure",
+  "startup_failure",
+  "stale",
+  "timed_out",
+]);
+
+function evidencePriority(status: string, conclusion: string | null) {
+  if (conclusion && failureConclusions.has(conclusion)) return 0;
+  if (status !== "completed" || conclusion !== "success") return 1;
+  return 2;
+}
+
+export async function fetchWorkflowEvidence(
+  run: PipelineRun,
+  options: WorkflowEvidenceFetchOptions = {},
+): Promise<WorkflowEvidence> {
   const headers: HeadersInit = {
     accept: "application/vnd.github+json",
     "x-github-api-version": "2022-11-28",
     "user-agent": "stack-overlord",
   };
 
-  if (process.env.GITHUB_TOKEN) {
+  if (
+    options.authentication !== "anonymous" &&
+    process.env.GITHUB_TOKEN
+  ) {
     headers.authorization = `Bearer ${process.env.GITHUB_TOKEN}`;
   }
 
@@ -140,30 +200,78 @@ export async function fetchWorkflowEvidence(run: PipelineRun) {
 
     if (!response.ok) {
       console.error(`GitHub job evidence request failed with ${response.status}.`);
-      return [];
+      return workflowEvidenceUnavailable(
+        `GitHub Actions job details were unavailable (HTTP ${response.status}).`,
+      );
     }
 
     const parsed = workflowJobsSchema.safeParse(await response.json());
-    if (!parsed.success) return [];
+    if (!parsed.success) {
+      return workflowEvidenceUnavailable(
+        "GitHub Actions returned job details in an unsupported format.",
+      );
+    }
 
-    const evidence: string[] = [];
+    const rankedEvidence: RankedEvidence[] = [];
+    let order = 0;
     for (const job of parsed.data.jobs) {
-      if (job.conclusion === "failure") {
-        evidence.push(`Job "${job.name}" concluded with failure.`);
-      }
+      rankedEvidence.push({
+        evidence: {
+          id: `job:${job.id}`,
+          source: "github_actions_jobs",
+          fact: jobFact(job),
+        },
+        priority: evidencePriority(job.status, job.conclusion),
+        order: order++,
+      });
 
       for (const step of job.steps ?? []) {
-        if (step.conclusion === "failure") {
-          evidence.push(
-            `Step "${step.name}" in job "${job.name}" concluded with failure.`,
-          );
-        }
+        if (step.conclusion === "success" && step.status === "completed") continue;
+
+        const conclusion = step.conclusion
+          ? ` and conclusion "${step.conclusion}"`
+          : " and no conclusion";
+        rankedEvidence.push({
+          evidence: {
+            id: `step:${job.id}:${step.number}`,
+            source: "github_actions_jobs",
+            fact: `Step ${step.number}, "${step.name}", in job "${job.name}" has status "${step.status}"${conclusion}.`,
+          },
+          priority: evidencePriority(step.status, step.conclusion),
+          order: order++,
+        });
       }
     }
 
-    return evidence.slice(0, 12);
+    const evidence = rankedEvidence
+      .sort((left, right) =>
+        left.priority === right.priority
+          ? left.order - right.order
+          : left.priority - right.priority,
+      )
+      .map(({ evidence: item }) => item);
+
+    const contextNotes: string[] = [];
+    if (parsed.data.total_count > parsed.data.jobs.length) {
+      contextNotes.push(
+        `GitHub reported ${parsed.data.total_count} jobs, but evidence retrieval was limited to the first API page of ${parsed.data.jobs.length}; later-page jobs and steps were not provided.`,
+      );
+    }
+    if (evidence.length > 12) {
+      contextNotes.push(
+        "GitHub Actions evidence was limited to the 12 highest-priority job and relevant step records, with failures and other non-success states first.",
+      );
+    }
+
+    return {
+      items: evidence.slice(0, 12),
+      status: "available",
+      note: contextNotes.length ? contextNotes.join(" ") : null,
+    };
   } catch (error) {
     console.error("GitHub job evidence could not be loaded.", error);
-    return [];
+    return workflowEvidenceUnavailable(
+      "GitHub Actions job details could not be loaded.",
+    );
   }
 }

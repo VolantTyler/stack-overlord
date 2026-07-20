@@ -1,6 +1,6 @@
 # Stack Overlord
 
-Stack Overlord is a responsive command center for the final, easy-to-miss stages of a CI/CD pipeline. It receives signed GitHub webhooks, records the factual workflow state in Postgres, and uses GPT-5.6 to explain failed runs with evidence, confidence, and verifiable recovery steps.
+Stack Overlord is a responsive command center for the final, easy-to-miss stages of a CI/CD pipeline. It receives signed GitHub webhooks, records the factual workflow state in Postgres, and uses the OpenAI Responses API to explain pipeline runs with bounded evidence, confidence, and verifiable next steps.
 
 Built for the **OpenAI Build Week 2026 Developer Tools** track.
 
@@ -9,7 +9,8 @@ Live demo: [stack-overlord.vercel.app](https://stack-overlord.vercel.app)
 ## Product principles
 
 - GitHub determines whether a workflow succeeded, failed, or is still running.
-- GPT-5.6 explains failures; it never invents pipeline state.
+- Failures are analyzed automatically, and any stored run can be analyzed on demand.
+- AI interpretation never determines or overwrites GitHub-owned pipeline state.
 - Every recommendation includes a verification step.
 - Telemetry is stored before optional diagnosis or notification work begins.
 - Missing credentials never block the deterministic demo experience.
@@ -69,10 +70,11 @@ See the [sandbox deployment result runbook](docs/demo/deployment-results.md) and
 | Variable | Purpose | Required for demo UI |
 | --- | --- | --- |
 | `DATABASE_URL` | Postgres event and pipeline ledger | No |
-| `OPENAI_API_KEY` | GPT-5.6 failure diagnosis | No |
+| `OPENAI_API_KEY` | Automatic failure analysis and on-demand row analysis | No |
 | `OPENAI_MODEL` | Runtime model; defaults to `gpt-5.6` | No |
+| `ANALYSIS_ACCESS_TOKEN` | Shared access key for new paid on-demand analysis generation | No |
 | `GITHUB_WEBHOOK_SECRET` | HMAC verification for GitHub deliveries | No |
-| `GITHUB_TOKEN` | Optional private-repository job and failed-step evidence | No |
+| `GITHUB_TOKEN` | Optional authenticated evidence for automatic failure analysis; never used on demand | No |
 | `SLACK_WEBHOOK_URL` | Slack failure alerts | No |
 
 Never commit `.env.local` or real credentials.
@@ -112,18 +114,58 @@ Invalid signatures receive `401`. Missing webhook configuration receives `503`. 
 
 Codex translated the PRD into the application architecture, responsive dashboard, webhook contract, Postgres schema, deterministic fixtures, structured GPT-5.6 output, and automated tests. It also runs the build-test-review loop and browser-verifies the desktop and mobile experience. The Build Week submission will include the `/feedback` session ID for the task where the majority of this core functionality was created.
 
-## How GPT-5.6 advances the finished product
+## How OpenAI analysis advances the finished product
 
-Only failed workflow runs are sent to GPT-5.6. The model receives the already-determined run state and available evidence, then returns a strict structure containing:
+Verified failures are sent automatically for analysis after telemetry is stored. The
+**Analyze** control on every ledger row can request the same server-side analysis on
+demand for successful, running, cancelled, or still-pending failure rows. The server
+reloads the canonical run by id, returns that current record with the analysis, and
+replaces the browser's possibly stale row; the browser never supplies status or
+evidence.
 
-- Summary and likely cause
-- Supporting evidence
+The runtime requests `OPENAI_MODEL`, defaulting to the `gpt-5.6` alias through the
+Responses API. OpenAI currently documents that alias as routing to GPT-5.6 Sol. This
+is an API integration, not a ChatGPT conversation. Each live result records the
+requested model, the model reported by the API, and the response id. Deterministic
+demo analyses are hand-authored, labeled as seeded fixtures, and explicitly report
+that no model call or API response occurred.
+
+The model receives the already-determined run state, bounded run metadata, and
+available GitHub Actions job and relevant step records. Every displayed evidence item
+must reference an evidence id supplied by the server. Raw logs, workflow YAML, source
+code, diffs, artifacts, provider events, and prior-run comparisons are not currently
+included; the interface discloses those limits instead of treating missing context as
+negative evidence. The context disclosure enumerates every supplied fact, not just the
+subset cited by the model. GitHub retrieval uses the first page of up to 100 jobs and
+then keeps the 12 highest-priority job/step facts; if GitHub reports additional pages,
+that omission is recorded in both the model context and the interface.
+
+The strict response contains:
+
+- A substantive summary and status-aware interpretation
+- Server-validated evidence references
 - Low, medium, or high confidence
 - Explicit limitations
-- Prioritized recovery actions
+- Prioritized next actions with rationale
 - A verification step for every action
 
-The dashboard records the model and response ID for traceability. If OpenAI is unavailable, the verified failure remains stored and visible with diagnosis marked pending.
+On-demand results update only the analysis JSON and only while the stored status still
+matches the analyzed status and update revision. To generate a new paid response, the
+browser user enters the same shared access key configured on the server as
+`ANALYSIS_ACCESS_TOKEN`; the browser sends it as a bearer token. The server secret is
+never placed in server-rendered props and must never use a `NEXT_PUBLIC_` variable.
+Cached live analyses and seeded demo analyses remain viewable without the key, and
+automatic webhook-triggered failure analysis is unaffected.
+
+Same-origin checks and bounded per-client and per-server-instance limits remain
+defense-in-depth for new generation requests; the shared access key is the primary
+authorization boundary. On-demand evidence requests are anonymous and never send the
+configured GitHub token. Deterministic demo rows return only seeded analyses and are
+never sent to OpenAI. If OpenAI or on-demand access is not configured, the GitHub-owned
+run remains stored and visible with analysis marked unavailable.
+
+See the [GPT-5.6 model guidance](https://developers.openai.com/api/docs/guides/latest-model)
+for the current alias and Responses API guidance.
 
 ## Verification
 

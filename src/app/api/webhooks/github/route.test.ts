@@ -8,6 +8,7 @@ const mocks = vi.hoisted(() => ({
   notifySlack: vi.fn(),
   savePipelineEvent: vi.fn(),
   savePipelineRun: vi.fn(),
+  savePipelineRunAnalysis: vi.fn(),
 }));
 
 vi.mock("next/server", () => ({
@@ -22,6 +23,7 @@ vi.mock("@/lib/slack", () => ({ notifySlack: mocks.notifySlack }));
 vi.mock("@/lib/repository", () => ({
   savePipelineEvent: mocks.savePipelineEvent,
   savePipelineRun: mocks.savePipelineRun,
+  savePipelineRunAnalysis: mocks.savePipelineRunAnalysis,
 }));
 vi.mock("@/lib/github", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/github")>();
@@ -31,6 +33,29 @@ vi.mock("@/lib/github", async (importOriginal) => {
 import { POST } from "./route";
 
 const secret = "test-secret";
+const runRevision = "2026-07-20T13:00:00.000Z";
+const diagnosis = {
+  summary:
+    "The deployment job has a verified failure. The supplied evidence localizes it to the authentication step.",
+  likelyCause:
+    "The authentication step is the narrowest supported cause hypothesis in the available job context.",
+  evidence: ["run:status", "step:7788:2"],
+  confidence: "medium" as const,
+  limitations: ["Raw workflow logs were not supplied."],
+  recommendations: [
+    {
+      priority: 1,
+      action: "Inspect the failed authentication step.",
+      rationale: "The supplied job record identifies that step as failed.",
+      verification: "Confirm the first error before changing credentials.",
+    },
+  ],
+  model: "gpt-5.6-sol",
+  requestedModel: "gpt-5.6",
+  responseId: "resp_test",
+  generatedAt: "2026-07-20T13:00:00.000Z",
+  provenance: "openai-api" as const,
+};
 const workflowPayload = {
   action: "completed",
   repository: { full_name: "VolantTyler/cognitive-bridge-demo" },
@@ -76,9 +101,14 @@ beforeEach(() => {
   vi.stubEnv("GITHUB_WEBHOOK_SECRET", secret);
   vi.clearAllMocks();
   mocks.afterCallbacks.length = 0;
-  mocks.fetchWorkflowEvidence.mockResolvedValue([]);
+  mocks.fetchWorkflowEvidence.mockResolvedValue({
+    items: [],
+    status: "available",
+    note: null,
+  });
   mocks.diagnoseFailure.mockResolvedValue(null);
   mocks.notifySlack.mockResolvedValue(true);
+  mocks.savePipelineRunAnalysis.mockResolvedValue("saved");
 });
 
 afterEach(() => {
@@ -88,7 +118,7 @@ afterEach(() => {
 describe("GitHub webhook persistence ordering", () => {
   it("responds successfully without waiting for deliberately slow diagnosis", async () => {
     mocks.savePipelineEvent.mockResolvedValue("stored");
-    mocks.savePipelineRun.mockResolvedValue(true);
+    mocks.savePipelineRun.mockResolvedValue(runRevision);
     mocks.diagnoseFailure.mockImplementation(
       () => new Promise((resolve) => setTimeout(() => resolve(null), 60_000)),
     );
@@ -108,7 +138,7 @@ describe("GitHub webhook persistence ordering", () => {
 
   it("persists event and normalized run before acknowledgement", async () => {
     mocks.savePipelineEvent.mockResolvedValue("stored");
-    mocks.savePipelineRun.mockResolvedValue(true);
+    mocks.savePipelineRun.mockResolvedValue(runRevision);
 
     const response = await POST(signedRequest());
 
@@ -121,7 +151,7 @@ describe("GitHub webhook persistence ordering", () => {
 
   it("starts optional work only after persistence and after the post-response callback runs", async () => {
     mocks.savePipelineEvent.mockResolvedValue("stored");
-    mocks.savePipelineRun.mockResolvedValue(true);
+    mocks.savePipelineRun.mockResolvedValue(runRevision);
 
     const response = await POST(signedRequest());
 
@@ -132,6 +162,45 @@ describe("GitHub webhook persistence ordering", () => {
     expect(mocks.fetchWorkflowEvidence).toHaveBeenCalledOnce();
     expect(mocks.diagnoseFailure).toHaveBeenCalledOnce();
     expect(mocks.notifySlack).toHaveBeenCalledOnce();
+  });
+
+  it("stores model output with an analysis-only update", async () => {
+    mocks.savePipelineEvent.mockResolvedValue("stored");
+    mocks.savePipelineRun.mockResolvedValue(runRevision);
+    mocks.diagnoseFailure.mockResolvedValue(diagnosis);
+
+    const response = await POST(signedRequest());
+    await runAfterCallbacks();
+
+    expect(response.status).toBe(200);
+    expect(mocks.savePipelineRun).toHaveBeenCalledOnce();
+    expect(mocks.savePipelineRunAnalysis).toHaveBeenCalledWith(
+      "12345",
+      "failure",
+      diagnosis,
+      runRevision,
+    );
+  });
+
+  it("discards an analysis when a newer run revision arrives before optional work finishes", async () => {
+    mocks.savePipelineEvent.mockResolvedValue("stored");
+    mocks.savePipelineRun.mockResolvedValue(runRevision);
+    mocks.diagnoseFailure.mockResolvedValue(diagnosis);
+    mocks.savePipelineRunAnalysis.mockResolvedValue("stale");
+
+    const response = await POST(signedRequest());
+    await runAfterCallbacks();
+
+    expect(response.status).toBe(200);
+    expect(mocks.savePipelineRunAnalysis).toHaveBeenCalledWith(
+      "12345",
+      "failure",
+      diagnosis,
+      runRevision,
+    );
+    expect(mocks.notifySlack).toHaveBeenCalledWith(
+      expect.objectContaining({ diagnosis: null }),
+    );
   });
 
   it("stops before optional work when event storage is unavailable", async () => {
@@ -148,7 +217,7 @@ describe("GitHub webhook persistence ordering", () => {
 
   it("does not repeat optional work or notify twice for a duplicate delivery", async () => {
     mocks.savePipelineEvent.mockResolvedValueOnce("stored").mockResolvedValueOnce("duplicate");
-    mocks.savePipelineRun.mockResolvedValue(true);
+    mocks.savePipelineRun.mockResolvedValue(runRevision);
 
     const first = await POST(signedRequest());
     const retry = await POST(signedRequest());
@@ -174,7 +243,7 @@ describe("GitHub webhook persistence ordering", () => {
 
   it("keeps diagnosis and Slack failures outside the accepted response", async () => {
     mocks.savePipelineEvent.mockResolvedValue("stored");
-    mocks.savePipelineRun.mockResolvedValue(true);
+    mocks.savePipelineRun.mockResolvedValue(runRevision);
     mocks.diagnoseFailure.mockRejectedValue(new Error("slow model failed"));
     mocks.notifySlack.mockRejectedValue(new Error("slack failed"));
 
