@@ -106,7 +106,9 @@ test("repository controls meet WCAG AA contrast", async ({ page }) => {
     ).toBeGreaterThanOrEqual(4.5);
   }
 
-  const routeActions = page.getByRole("link", { name: "Open route" });
+  const routeActions = page.getByRole("link", {
+    name: /^Open the dedicated dashboard route for /,
+  });
   expect(await routeActions.count(), "Expected repository route actions").toBeGreaterThan(
     0,
   );
