@@ -58,6 +58,10 @@ export function workflowRunFromPayload(payload: unknown): PipelineRun | null {
   const startedAt = new Date(workflow.created_at);
   const completedAt =
     workflow.status === "completed" ? new Date(workflow.updated_at) : null;
+  const workflowName =
+    workflow.event === "workflow_dispatch"
+      ? workflow.display_title ?? workflow.name
+      : workflow.name;
 
   return {
     id: String(workflow.id),
@@ -65,7 +69,7 @@ export function workflowRunFromPayload(payload: unknown): PipelineRun | null {
     branch: workflow.head_branch ?? "detached",
     commitSha: workflow.head_sha,
     commitMessage: workflow.display_title ?? workflow.name,
-    workflowName: workflow.name,
+    workflowName,
     status: mapConclusion(workflow.status, workflow.conclusion),
     environment: workflow.name.toLowerCase().includes("preview")
       ? "firebase-preview"
