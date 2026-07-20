@@ -1,4 +1,5 @@
 name: Sandbox Deployment Demo
+run-name: ${{ inputs.result == 'failure' && 'Sandbox Deploy: Fail' || 'Sandbox Deploy: Success' }}
 
 on:
   workflow_dispatch:

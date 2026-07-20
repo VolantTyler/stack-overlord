@@ -77,6 +77,27 @@ describe("workflowRunFromPayload", () => {
     expect(run?.completedAt).toBeNull();
   });
 
+  it("uses an explicit dispatch run name as the dashboard workflow label", () => {
+    const run = workflowRunFromPayload({
+      ...workflowPayload,
+      workflow_run: {
+        ...workflowPayload.workflow_run,
+        name: "Sandbox Deployment Demo",
+        display_title: "Sandbox Deploy: Fail",
+        event: "workflow_dispatch",
+      },
+    });
+
+    expect(run?.workflowName).toBe("Sandbox Deploy: Fail");
+  });
+
+  it("keeps commit messages out of workflow labels for push events", () => {
+    const run = workflowRunFromPayload(workflowPayload);
+
+    expect(run?.workflowName).toBe("Deploy to Firebase Hosting on Merge");
+    expect(run?.commitMessage).toBe("feat: improve dashboard");
+  });
+
   it("returns null for unsupported payloads", () => {
     expect(workflowRunFromPayload({ action: "completed" })).toBeNull();
   });

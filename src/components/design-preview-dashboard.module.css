@@ -98,10 +98,17 @@
   width: 44px;
   height: 44px;
   flex: 0 0 auto;
+  overflow: hidden;
   place-items: center;
   color: var(--accent);
   border: 1px solid var(--line);
   background: var(--surface);
+}
+
+.brandIcon img {
+  display: block;
+  width: 100%;
+  height: 100%;
 }
 
 .brandIcon svg {
@@ -183,7 +190,8 @@
 .analyzeButton:focus-visible,
 .retryButton:focus-visible,
 .analysisAccessForm input:focus-visible,
-.openRun:focus-visible {
+.openRun:focus-visible,
+.viewMore:focus-visible {
   outline: 3px solid var(--accent-2);
   outline-offset: 3px;
 }
@@ -821,6 +829,32 @@
   height: 1px;
   overflow: hidden;
   clip: rect(0 0 0 0);
+}
+
+.viewMore {
+  display: flex;
+  width: 100%;
+  min-height: 48px;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  color: var(--ink);
+  border: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  cursor: pointer;
+  font-size: 11px;
+  font-weight: 900;
+}
+
+.viewMore small {
+  color: var(--muted);
+  font: 700 9px/1 var(--font-geist-mono), monospace;
+  text-transform: uppercase;
+}
+
+.viewMore svg {
+  width: 15px;
 }
 
 .runAnalysis {
@@ -1608,6 +1642,12 @@
   border-radius: 9px;
   background: #fff;
   box-shadow: 0 3px 0 var(--line);
+}
+
+.concept_a .viewMore {
+  color: var(--ink);
+  border-bottom-width: 3px;
+  background: #e6f6ff;
 }
 
 .concept_a .analyzeButton,

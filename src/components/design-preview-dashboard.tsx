@@ -1,5 +1,6 @@
 "use client";
 
+import Image from "next/image";
 import Link from "next/link";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import {
@@ -8,7 +9,9 @@ import {
   Bell,
   Check,
   CheckCircle2,
+  ChevronDown,
   ChevronRight,
+  ChevronUp,
   CircleDot,
   Clock3,
   Database,
@@ -761,7 +764,7 @@ function PipelineRunItem({
   const currentAnalysis = isCurrentAnalysis(run.diagnosis);
 
   return (
-    <article className={styles.runItem}>
+    <article className={styles.runItem} role="listitem">
       <div className={styles.runRow}>
         <div className={styles.runStatus}>
           <StatusMark status={run.status} />
@@ -911,6 +914,11 @@ function PipelineLedger({
   requestStates: Record<string, AnalysisRequestState | undefined>;
   runs: PipelineRun[];
 }) {
+  const viewKey = `${repositoryLabel ?? "all"}:${filter}`;
+  const [expandedView, setExpandedView] = useState<string | null>(null);
+  const isExpanded = expandedView === viewKey;
+  const visibleRuns = isExpanded ? runs : runs.slice(0, 6);
+  const additionalRunCount = Math.max(0, runs.length - 6);
   const filters: { label: string; value: Filter }[] = [
     { label: "All runs", value: "all" },
     { label: "Failed", value: "failure" },
@@ -950,17 +958,39 @@ function PipelineLedger({
       </div>
 
       <div className={styles.runList}>
-        {runs.map((run) => (
-          <PipelineRunItem
-            expanded={expandedRunId === run.id}
-            key={run.id}
-            onAuthorizeAnalysis={onAuthorizeAnalysis}
-            onRetryAnalysis={onRetryAnalysis}
-            onToggleAnalysis={onToggleAnalysis}
-            request={requestStates[run.id]}
-            run={run}
-          />
-        ))}
+        <div id="pipeline-run-list" role="list" aria-label="Pipeline runs">
+          {visibleRuns.map((run) => (
+            <PipelineRunItem
+              expanded={expandedRunId === run.id}
+              key={run.id}
+              onAuthorizeAnalysis={onAuthorizeAnalysis}
+              onRetryAnalysis={onRetryAnalysis}
+              onToggleAnalysis={onToggleAnalysis}
+              request={requestStates[run.id]}
+              run={run}
+            />
+          ))}
+        </div>
+        {additionalRunCount > 0 && (
+          <button
+            className={styles.viewMore}
+            type="button"
+            aria-controls="pipeline-run-list"
+            aria-expanded={isExpanded}
+            onClick={() => setExpandedView(isExpanded ? null : viewKey)}
+          >
+            <span>{isExpanded ? "View less" : "View more"}</span>
+            <small>
+              {additionalRunCount} additional{" "}
+              {additionalRunCount === 1 ? "run" : "runs"}
+            </small>
+            {isExpanded ? (
+              <ChevronUp aria-hidden="true" />
+            ) : (
+              <ChevronDown aria-hidden="true" />
+            )}
+          </button>
+        )}
         {runs.length === 0 && (
           <div className={styles.emptyState}>
             <Activity aria-hidden="true" />
@@ -1114,7 +1144,14 @@ export function DesignPreviewDashboard({
   );
 
   const filteredRuns = useMemo(
-    () => scopedRuns.filter((run) => filter === "all" || run.status === filter),
+    () =>
+      scopedRuns
+        .filter((run) => filter === "all" || run.status === filter)
+        .toSorted(
+          (left, right) =>
+            new Date(right.startedAt).getTime() -
+            new Date(left.startedAt).getTime(),
+        ),
     [filter, scopedRuns],
   );
 
@@ -1279,7 +1316,13 @@ export function DesignPreviewDashboard({
         >
           <div className={styles.brand}>
             <span className={styles.brandIcon}>
-              <Radio aria-hidden="true" />
+              <Image
+                src="/icons/app-icon.svg"
+                alt=""
+                width={44}
+                height={44}
+                priority
+              />
             </span>
             <div>
               <div className={styles.brandLine}>

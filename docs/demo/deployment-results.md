@@ -17,7 +17,7 @@ Copy `.github/workflows/sandbox-deployment-demo.yml` into `VolantTyler/Cognitive
 GITHUB_TOKEN=... npm run demo:deployment:force-success
 ```
 
-Wait for the GitHub Actions run named `Sandbox Deployment Demo` to complete with a `success` conclusion.
+Wait for the GitHub Actions run named `Sandbox Deploy: Success` to complete with a `success` conclusion.
 
 ## 3. Trigger the controlled failure run
 
@@ -26,6 +26,9 @@ GITHUB_TOKEN=... npm run demo:deployment:force-failure
 ```
 
 The workflow intentionally fails in the `Produce controlled sandbox deployment failure` step. This gives Stack Overlord a deployment demonstration failure rather than another `Psychometric Agent Evaluation` result.
+
+GitHub labels this dispatch `Sandbox Deploy: Fail`, so the dashboard can
+distinguish its intended outcome without inferring intent from the conclusion.
 
 The lower-level trigger remains available when you need to override the sandbox repository, workflow file, or git ref:
 

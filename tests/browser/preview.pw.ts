@@ -252,3 +252,34 @@ test("repository controls meet WCAG AA contrast", async ({ page }) => {
     ).toBeGreaterThanOrEqual(4.5);
   }
 });
+
+test("shows the six most recent runs before expanding the ledger", async ({
+  page,
+}) => {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  const replayFailure = page.getByRole("button", {
+    name: "Replay a sandbox failure demo",
+  });
+  await replayFailure.click();
+  await replayFailure.click();
+
+  const pipelineRuns = page.getByRole("list", { name: "Pipeline runs" });
+  await expect(pipelineRuns.getByRole("listitem")).toHaveCount(6);
+
+  const viewMore = page.getByRole("button", { name: /View more/i });
+  await expect(viewMore).toHaveAttribute("aria-expanded", "false");
+  const viewMoreLabel = await viewMore.textContent();
+  const additionalRunCount = Number(
+    viewMoreLabel?.match(/(\d+) additional/)?.[1],
+  );
+  expect(additionalRunCount).toBeGreaterThan(0);
+  await viewMore.click();
+
+  await expect(pipelineRuns.getByRole("listitem")).toHaveCount(
+    6 + additionalRunCount,
+  );
+  await expect(
+    page.getByRole("button", { name: /View less/i }),
+  ).toHaveAttribute("aria-expanded", "true");
+});
