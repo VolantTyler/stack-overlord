@@ -3,14 +3,14 @@
   --surface: #10232c;
   --surface-strong: #172f39;
   --ink: #f5fbff;
-  --muted: #a7bcc5;
-  --line: #36505a;
+  --muted: #d4e4ea;
+  --line: #57737e;
   --accent: #7ef29a;
   --accent-2: #ffd95a;
   --success: #70e594;
   --failure: #ff756d;
   --running: #ffd35c;
-  --cancelled: #9aabb2;
+  --cancelled: #d0dde2;
   position: relative;
   min-height: 100vh;
   overflow: hidden;
@@ -872,7 +872,7 @@
   justify-content: space-between;
   gap: 20px;
   padding: 20px 2px 0;
-  color: var(--muted);
+  color: var(--ink);
   font-size: 10px;
 }
 
@@ -892,6 +892,7 @@
   --surface: #fff8db;
   --surface-strong: #fffdf0;
   --ink: #17324a;
+  --muted: #2c4656;
   --muted: #2c4656;
   --line: #17324a;
   --accent: #41b94d;
@@ -1140,7 +1141,7 @@
 }
 
 .concept_a .connector {
-  color: #41b94d;
+  color: #0c6829;
 }
 
 .concept_a .connector span {
@@ -1198,14 +1199,14 @@
   --surface: #11112d;
   --surface-strong: #181843;
   --ink: #fff6d8;
-  --muted: #a7a5cb;
+  --muted: #d6d3ff;
   --line: #46437b;
   --accent: #46f4dc;
   --accent-2: #ffdd4d;
   --success: #50f59d;
   --failure: #ff547b;
   --running: #ffdd4d;
-  --cancelled: #8a88af;
+  --cancelled: #d1cdfb;
 }
 
 .concept_b .visualLayer {
@@ -1466,14 +1467,14 @@
   --surface: #071820;
   --surface-strong: #09212b;
   --ink: #dffcff;
-  --muted: #79a7ae;
+  --muted: #bfeaf0;
   --line: #16404a;
   --accent: #4cefff;
   --accent-2: #ffba49;
   --success: #65f2c1;
   --failure: #ff6b81;
   --running: #ffba49;
-  --cancelled: #6b8b91;
+  --cancelled: #b9d5da;
 }
 
 .concept_c .visualLayer {
@@ -2089,5 +2090,16 @@
 @keyframes signal-glow {
   50% {
     box-shadow: 0 0 18px var(--accent);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .preview *,
+  .preview *::before,
+  .preview *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.01ms !important;
   }
 }

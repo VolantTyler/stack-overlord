@@ -263,6 +263,7 @@ function RepositoryPicker({
         <button
           type="button"
           aria-pressed={activeRepository === "all"}
+          aria-label="Show runs for all repositories"
           onClick={() => onRepositoryChange("all")}
         >
           <span>All repositories</span>
@@ -273,12 +274,18 @@ function RepositoryPicker({
             <button
               type="button"
               aria-pressed={activeRepository === repository}
+              aria-label={`Show runs for ${repository}`}
               onClick={() => onRepositoryChange(repository)}
             >
               <span>{repository}</span>
               <small>Filter dashboard</small>
             </button>
-            <Link href={repositoryRoute(repository)}>Open route</Link>
+            <Link
+              href={repositoryRoute(repository)}
+              aria-label={`Open the dedicated dashboard route for ${repository}`}
+            >
+              Open route
+            </Link>
           </div>
         ))}
       </div>
@@ -325,6 +332,7 @@ function PipelineLedger({
             <button
               type="button"
               aria-pressed={filter === item.value}
+              aria-label={`Show ${item.label.toLowerCase()} in the pipeline ledger`}
               onClick={() => onFilterChange(item.value)}
               key={item.value}
             >
@@ -361,7 +369,7 @@ function PipelineLedger({
               href={run.runUrl}
               target="_blank"
               rel="noreferrer"
-              aria-label={`Open ${run.workflowName} workflow on GitHub`}
+              aria-label={`Open ${run.workflowName} workflow on GitHub in a new tab`}
             >
               <ExternalLink aria-hidden="true" />
               <span>Open</span>
@@ -548,7 +556,11 @@ export function DesignPreviewDashboard({
             <h1 id="preview-title">{details.title}</h1>
             <p>{details.subtitle}</p>
             <div className={styles.heroActions}>
-              <button type="button" onClick={replayFailure}>
+              <button
+                type="button"
+                onClick={replayFailure}
+                aria-label="Replay a sandbox failure demo"
+              >
                 <RotateCcw aria-hidden="true" />
                 Replay sandbox failure
               </button>
