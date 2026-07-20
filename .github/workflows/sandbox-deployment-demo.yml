@@ -1,0 +1,47 @@
+name: Sandbox Deployment Demo
+
+on:
+  workflow_dispatch:
+    inputs:
+      result:
+        description: "Deployment result to produce"
+        required: true
+        default: success
+        type: choice
+        options:
+          - success
+          - failure
+      stack_overlord_webhook_url:
+        description: "Optional Stack Overlord GitHub webhook URL for fixture replay"
+        required: false
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  sandbox-deployment:
+    name: Sandbox deployment ${{ inputs.result }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout sandbox repository
+        uses: actions/checkout@v4
+
+      - name: Deployment preflight
+        run: |
+          echo "Repository: $GITHUB_REPOSITORY"
+          echo "Run: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID"
+          echo "Requested result: ${{ inputs.result }}"
+
+      - name: Produce sandbox deployment success
+        if: ${{ inputs.result == 'success' }}
+        run: |
+          echo "Simulated sandbox deployment completed successfully."
+          echo "deployment_url=https://cognitive-bridge-overlord-demo.web.app" >> "$GITHUB_OUTPUT"
+
+      - name: Produce controlled sandbox deployment failure
+        if: ${{ inputs.result == 'failure' }}
+        run: |
+          echo "::error title=Controlled sandbox deployment failure::Intentional failure for Stack Overlord deployment demo."
+          echo "This is not Psychometric Agent Evaluation; it is the sandbox deployment demo workflow."
+          exit 1

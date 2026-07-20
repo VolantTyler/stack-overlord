@@ -27,6 +27,42 @@ npm run dev
 
 Use a separate terminal for the replay commands. The helper signs the exact fixture bytes with HMAC-SHA256, assigns a unique delivery id, and refuses unknown remote hosts unless `--allow-remote` is explicit.
 
+
+### End-to-end real sandbox deployment tour
+
+Use this mode when the audience needs to see Stack Overlord backed by real GitHub Actions deployment conclusions instead of only static fixtures. The force scripts target the isolated `VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo` repository by default. Keep that default unless you are intentionally using another disposable sandbox.
+
+1. Ensure `.github/workflows/sandbox-deployment-demo.yml` exists on the sandbox repository's `main` branch.
+2. Trigger a real successful sandbox deployment demonstration:
+
+```bash
+GITHUB_TOKEN=... npm run demo:deployment:force-success
+```
+
+3. Trigger a real controlled sandbox deployment failure demonstration:
+
+```bash
+GITHUB_TOKEN=... npm run demo:deployment:force-failure
+```
+
+4. Wait for both GitHub Actions runs to complete. The success run should conclude `success`; the controlled failure run should conclude `failure` in the `Sandbox Deployment Demo` workflow, not in `Psychometric Agent Evaluation`.
+5. Save sanitized webhook fixtures from the real run ids. The helper verifies each run came from `Sandbox Deployment Demo` before writing a fixture:
+
+```bash
+GITHUB_TOKEN=... npm run demo:deployment:fixture -- --run-id <success-run-id> --result success
+GITHUB_TOKEN=... npm run demo:deployment:fixture -- --run-id <failure-run-id> --result failure
+```
+
+6. Replay those exact real-run fixtures into Stack Overlord:
+
+```bash
+export GITHUB_WEBHOOK_SECRET=stack-overlord-local-demo
+npm run demo:webhook -- success --fixture demo/fixtures/real-runs/sandbox-deployment-success.json
+npm run demo:webhook -- failure --fixture demo/fixtures/real-runs/sandbox-deployment-failure.json
+```
+
+Use `npm run demo:deployment:trigger -- --result success --dry-run` or `npm run demo:deployment:trigger -- --result failure --dry-run` when you want to show the dispatch API payload without starting a run.
+
 ## Presenter script (about five minutes)
 
 ### 1. Establish the pipeline truth model

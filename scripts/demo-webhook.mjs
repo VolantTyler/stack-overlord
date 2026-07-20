@@ -26,6 +26,7 @@ Options:
   --delivery <id>      Fixed delivery id, useful for idempotency demos
   --invalid-signature  Deliberately sign with the wrong secret
   --dry-run            Print the request without sending it
+  --fixture <path>      Send a specific sanitized fixture instead of the scenario fixture
   --allow-remote       Permit a host other than localhost or stack-overlord.vercel.app
   --list               List scenarios
   --help               Show this help
@@ -68,8 +69,13 @@ if (!secret) {
   process.exit(1);
 }
 
-const fixtureUrl = new URL(`../demo/fixtures/${scenario.fixture}`, import.meta.url);
-const rawBody = await readFile(fileURLToPath(fixtureUrl), "utf8");
+const fixturePath = option(args, "--fixture");
+const rawBody = fixturePath
+  ? await readFile(fixturePath, "utf8")
+  : await readFile(
+      fileURLToPath(new URL(`../demo/fixtures/${scenario.fixture}`, import.meta.url)),
+      "utf8",
+    );
 const signingSecret = args.includes("--invalid-signature") ? `${secret}-wrong` : secret;
 const signature = `sha256=${createHmac("sha256", signingSecret).update(rawBody).digest("hex")}`;
 const delivery = option(args, "--delivery") ?? `stack-overlord-demo-${randomUUID()}`;
