@@ -45,7 +45,7 @@ GITHUB_TOKEN=... npm run demo:deployment:force-success
 GITHUB_TOKEN=... npm run demo:deployment:force-failure
 ```
 
-4. Wait for both GitHub Actions runs to complete. `Sandbox Deploy: Success` should conclude `success`; `Sandbox Deploy: Fail` should conclude `failure` in the `Sandbox Deployment Demo` workflow, not in `Psychometric Agent Evaluation`.
+4. Wait for both GitHub Actions runs to complete. The success run should conclude `success`; the controlled failure run should conclude `failure` in the `Sandbox Deployment Demo` workflow, not in `Psychometric Agent Evaluation`.
 5. Save sanitized webhook fixtures from the real run ids. The helper verifies each run came from `Sandbox Deployment Demo` before writing a fixture:
 
 ```bash
