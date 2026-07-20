@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 function luminance(hex: string) {
   const channels = hex
@@ -30,10 +30,20 @@ function contrastRatio(foreground: string, background: string) {
 
 const minimumTextContrast = 4.5;
 
+async function gotoDashboard(page: Page) {
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  const dashboard = page.locator("main[data-concept]");
+  await expect(dashboard).toBeVisible();
+  await expect(page.locator("main")).toHaveCount(1);
+
+  return dashboard;
+}
+
 test("dashboard controls have accessible names and keyboard tab stops", async ({
   page,
 }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  await gotoDashboard(page);
 
   const unlabeledInteractiveElements = await page
     .locator(
@@ -99,9 +109,9 @@ test("dashboard controls have accessible names and keyboard tab stops", async ({
 test("design preview palettes keep body and muted text above WCAG AA contrast", async ({
   page,
 }) => {
-  await page.goto("/", { waitUntil: "domcontentloaded" });
+  const dashboard = await gotoDashboard(page);
 
-  const conceptPalettes = await page.locator("main").evaluate((mainElement) => {
+  const conceptPalettes = await dashboard.evaluate((mainElement) => {
     const computedStyle = window.getComputedStyle(mainElement);
 
     return {
