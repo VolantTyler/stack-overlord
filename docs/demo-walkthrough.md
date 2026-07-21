@@ -158,7 +158,7 @@ For any other host, `--allow-remote` is required as a deliberate safety acknowle
 
 ## Reset and verification
 
-- Zero-configuration replays live only in browser state; refresh to reset them.
+- Zero-configuration replays use an explicit demo URL, so the exact replay persists across refreshes. Select **Exit replay mode** to remove the demo mode and replay parameters; the dashboard then returns to its automatic live-or-fallback data source.
 - End-to-end runs live in the disposable database. Reset that database according to the provider's instructions rather than touching production data.
 - Before presenting, run the required project checks:
 
