@@ -195,3 +195,8 @@ The checklist is the source of truth for remaining submission work. The Devpost 
 ## Safe demo target
 
 The planned monitored repository is an isolated duplicate of `VolantTyler/Cognitive-Bridge-Antigravity`, backed by a sandbox Firebase project. It preserves realistic TypeScript, Python, Functions, Hosting, and GitHub Actions complexity without touching the original production repository or credentials.
+
+
+## License
+
+MIT — see [LICENSE](LICENSE).
