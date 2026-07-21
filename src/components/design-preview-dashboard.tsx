@@ -1,6 +1,7 @@
 "use client";
 
 import Link from "next/link";
+import { useRouter } from "next/navigation";
 import { type FormEvent, useId, useMemo, useState } from "react";
 import {
   Activity,
@@ -24,6 +25,7 @@ import {
 } from "lucide-react";
 
 import { demoPipelineRuns } from "@/lib/demo-data";
+import { createDemoFailureReplay } from "@/lib/demo-mode";
 import type {
   DashboardSource,
   Diagnosis,
@@ -165,6 +167,27 @@ const analysisFocusLabels: Record<PipelineStatus, string> = {
   success: "Recorded outcome",
 };
 
+const confidenceDetails: Record<
+  Diagnosis["confidence"],
+  {
+    guidance: string;
+    icon: typeof ShieldCheck;
+  }
+> = {
+  high: {
+    guidance: "High confidence — still confirm each action against source evidence.",
+    icon: ShieldCheck,
+  },
+  medium: {
+    guidance: "Medium confidence — validate the evidence before applying these steps.",
+    icon: AlertTriangle,
+  },
+  low: {
+    guidance: "Low confidence — treat these steps as hypotheses and verify before acting.",
+    icon: AlertTriangle,
+  },
+};
+
 function StatusMark({ status }: { status: PipelineStatus }) {
   const detail = statusDetails[status];
   const Icon = detail.icon;
@@ -269,6 +292,26 @@ function PipelineMap({ analysisCount }: { analysisCount: number }) {
       </div>
 
       <div className={styles.stageGrid} role="list" aria-label="Pipeline handoffs">
+        <svg
+          className={styles.mobileRoutePipe}
+          data-testid="mobile-route-pipe"
+          viewBox="0 0 100 100"
+          preserveAspectRatio="none"
+          aria-hidden="true"
+        >
+          <path
+            className={styles.mobileRoutePipeOutline}
+            d="M 46 24 H 54 M 46 74 H 54 M 25 43 V 48.5 H 75 V 57"
+          />
+          <path
+            className={styles.mobileRoutePipeFill}
+            d="M 46 24 H 54 M 46 74 H 54 M 25 43 V 48.5 H 75 V 57"
+          />
+          <path
+            className={styles.mobileRoutePipeHighlight}
+            d="M 46 24 H 54 M 46 74 H 54 M 25 43 V 48.5 H 75 V 57"
+          />
+        </svg>
         {stages.map((stage, index) => {
           const Icon = stage.icon;
 
@@ -326,8 +369,7 @@ function RepositoryPicker({
         <p className={styles.kicker}>Repository picker</p>
         <h2 id="repository-picker-heading">Choose a repository to monitor.</h2>
         <p>
-          Keep one deployment connected to several personal repositories, then
-          scope the dashboard before opening the GitHub workflow evidence.
+          Scope the ledger, then open the verified GitHub workflow evidence.
         </p>
       </div>
       <div className={styles.repositoryList} aria-label="Repository views">
@@ -502,6 +544,8 @@ function AnalysisDetails({
   const recommendations = [...analysis.recommendations].sort(
     (first, second) => first.priority - second.priority,
   );
+  const confidenceDetail = confidenceDetails[analysis.confidence];
+  const ConfidenceIcon = confidenceDetail.icon;
   const supportingEvidence = analysis.evidence.map((reference, index) => {
     const recordedEvidence = contextEvidence.get(reference);
 
@@ -523,7 +567,10 @@ function AnalysisDetails({
   });
 
   return (
-    <div className={styles.analysisDetails}>
+    <div
+      className={styles.analysisDetails}
+      data-confidence={analysis.confidence}
+    >
       <section className={`${styles.analysisSection} ${styles.analysisSummary}`}>
         <div className={styles.analysisSectionHeader}>
           <SectionHeading>
@@ -560,8 +607,14 @@ function AnalysisDetails({
         </ul>
       </section>
 
-      <section className={styles.analysisSection}>
+      <section
+        className={`${styles.analysisSection} ${styles.analysisRecommendations}`}
+      >
         <SectionHeading>Recommended next steps</SectionHeading>
+        <p className={styles.recommendationTrust}>
+          <ConfidenceIcon aria-hidden="true" />
+          {confidenceDetail.guidance}
+        </p>
         <ol className={styles.recommendationList}>
           {recommendations.map((recommendation, index) => (
             <li
@@ -759,12 +812,31 @@ function PipelineRunItem({
   const fixture = isDemoFixture(run.diagnosis);
   const apiConfirmed = run.diagnosis?.provenance === "openai-api";
   const currentAnalysis = isCurrentAnalysis(run.diagnosis);
+  const ConfidenceIcon = run.diagnosis
+    ? confidenceDetails[run.diagnosis.confidence].icon
+    : null;
 
   return (
     <article className={styles.runItem}>
       <div className={styles.runRow}>
         <div className={styles.runStatus}>
           <StatusMark status={run.status} />
+          {run.isReplay && (
+            <span className={styles.replayBadge}>
+              <RotateCcw aria-hidden="true" />
+              Replay
+            </span>
+          )}
+          {run.diagnosis && ConfidenceIcon && (
+            <span
+              className={styles.rowConfidence}
+              data-confidence={run.diagnosis.confidence}
+              data-testid="row-confidence"
+            >
+              <ConfidenceIcon aria-hidden="true" />
+              {run.diagnosis.confidence} confidence
+            </span>
+          )}
         </div>
         <div className={styles.runWorkflow}>
           <strong>{run.workflowName}</strong>
@@ -1059,18 +1131,23 @@ function DiagnosisPanel({
 
 export function DesignPreviewDashboard({
   concept,
+  demoMode = false,
   initialRuns,
   previewMode = true,
   repositoryLabel,
   source,
 }: {
   concept: DesignConcept;
+  demoMode?: boolean;
   initialRuns: PipelineRun[];
   previewMode?: boolean;
   repositoryLabel?: string;
   source: DashboardSource;
 }) {
+  const router = useRouter();
   const [runs, setRuns] = useState(initialRuns);
+  const [displaySource, setDisplaySource] = useState(source);
+  const [persistentDemoMode, setPersistentDemoMode] = useState(demoMode);
   const [filter, setFilter] = useState<Filter>("all");
   const [expandedRunId, setExpandedRunId] = useState<string | null>(null);
   const [requestStates, setRequestStates] = useState<
@@ -1086,10 +1163,10 @@ export function DesignPreviewDashboard({
       Array.from(
         new Set([
           ...runs.map((run) => run.repository),
-          ...(repositoryLabel ? [repositoryLabel] : []),
+          ...(repositoryLabel && !persistentDemoMode ? [repositoryLabel] : []),
         ]),
       ).sort(),
-    [repositoryLabel, runs],
+    [persistentDemoMode, repositoryLabel, runs],
   );
 
   const scopedRuns = useMemo(
@@ -1234,31 +1311,33 @@ export function DesignPreviewDashboard({
   }
 
   function replayFailure() {
-    const template = demoPipelineRuns.find(
-      (run) => run.status === "failure" && run.diagnosis,
-    );
-    if (!template?.diagnosis) return;
+    const replayTimestamp = Date.now();
+    const replay = createDemoFailureReplay(replayTimestamp);
+    if (!replay) return;
 
-    const now = new Date();
-    const replay: PipelineRun = {
-      ...template,
-      id: `preview-replay-${now.getTime()}`,
-      commitSha: crypto.randomUUID().replaceAll("-", ""),
-      commitMessage: "demo: replay missing sandbox credential",
-      startedAt: new Date(now.getTime() - 94_000).toISOString(),
-      completedAt: now.toISOString(),
-      durationSeconds: 94,
-      diagnosis: {
-        ...template.diagnosis,
-        provenance: "demo-fixture",
-        responseId: null,
-      },
-      isReplay: true,
-    };
-
-    setRuns((current) => [replay, ...current]);
+    setRuns([replay, ...demoPipelineRuns]);
+    setDisplaySource("demo");
+    setPersistentDemoMode(true);
+    setSelectedRepository("all");
     setFilter("all");
     setExpandedRunId(null);
+    setRequestStates({});
+
+    const url = new URL(window.location.href);
+    url.searchParams.set("mode", "demo");
+    url.searchParams.set("replay", String(replayTimestamp));
+    router.replace(`${url.pathname}${url.search}${url.hash}`, {
+      scroll: false,
+    });
+  }
+
+  function exitReplayMode() {
+    const url = new URL(window.location.href);
+    url.searchParams.delete("mode");
+    url.searchParams.delete("replay");
+    router.replace(`${url.pathname}${url.search}${url.hash}`, {
+      scroll: false,
+    });
   }
 
   return (
@@ -1290,11 +1369,18 @@ export function DesignPreviewDashboard({
             </div>
           </div>
           {previewMode && <ConceptNavigation concept={concept} />}
-          <div className={styles.feed}>
+          <div className={styles.feed} role="status" aria-live="polite">
             <span aria-hidden="true" />
             <div>
-              <strong>{source === "postgres" ? "Live feed" : "Demo feed"}</strong>
-              <small>{activeRepositoryLabel ?? "Pipeline truth online"}</small>
+              <strong>
+                {displaySource === "postgres" ? "Live feed" : "Demo feed"}
+              </strong>
+              <small>
+                {activeRepositoryLabel ??
+                  (displaySource === "postgres"
+                    ? "Pipeline truth online"
+                    : "Sandbox fixtures only")}
+              </small>
             </div>
           </div>
         </header>
@@ -1302,7 +1388,11 @@ export function DesignPreviewDashboard({
         <section className={styles.hero} aria-labelledby="preview-title">
           <div className={styles.heroCopy}>
             <p className={styles.eyebrow}>
-              {previewMode ? details.eyebrow : "Live pipeline · Pipeworks command"}
+              {previewMode
+                ? details.eyebrow
+                : displaySource === "postgres"
+                  ? "Live pipeline · Pipeworks command"
+                  : "Demo pipeline · Pipeworks command"}
             </p>
             <h1 id="preview-title">{details.title}</h1>
             <p>{details.subtitle}</p>
@@ -1315,6 +1405,16 @@ export function DesignPreviewDashboard({
                 <RotateCcw aria-hidden="true" />
                 Replay sandbox failure
               </button>
+              {persistentDemoMode && (
+                <button
+                  className={styles.returnLiveButton}
+                  type="button"
+                  onClick={exitReplayMode}
+                >
+                  <Radio aria-hidden="true" />
+                  Exit replay mode
+                </button>
+              )}
               <span>
                 <ShieldCheck aria-hidden="true" />
                 {activeRepositoryLabel ? "Repository scoped" : "Pick a repository"}
@@ -1330,6 +1430,8 @@ export function DesignPreviewDashboard({
             <div className={styles.heroPipeRight} />
           </div>
         </section>
+
+        <PipelineMap analysisCount={analysisCount} />
 
         <RepositoryPicker
           activeRepository={selectedRepository}
@@ -1360,36 +1462,32 @@ export function DesignPreviewDashboard({
           />
         </section>
 
-        <PipelineMap analysisCount={analysisCount} />
-
-        <div className={styles.lowerGrid}>
-          <PipelineLedger
-            expandedRunId={expandedRunId}
-            filter={filter}
-            onFilterChange={changeFilter}
-            onAuthorizeAnalysis={(run, accessToken) =>
-              void requestAnalysis(run, accessToken)
-            }
-            onRetryAnalysis={(run) => void requestAnalysis(run)}
-            onToggleAnalysis={toggleAnalysis}
-            repositoryLabel={activeRepositoryLabel}
-            requestStates={requestStates}
-            runs={filteredRuns}
-          />
-          <DiagnosisPanel
-            onAuthorize={
-              latestFailure
-                ? (accessToken) =>
-                    void requestAnalysis(latestFailure, accessToken)
-                : undefined
-            }
-            onRetry={
-              latestFailure ? () => void requestAnalysis(latestFailure) : undefined
-            }
-            request={latestFailure ? requestStates[latestFailure.id] : undefined}
-            run={latestFailure}
-          />
-        </div>
+        <PipelineLedger
+          expandedRunId={expandedRunId}
+          filter={filter}
+          onFilterChange={changeFilter}
+          onAuthorizeAnalysis={(run, accessToken) =>
+            void requestAnalysis(run, accessToken)
+          }
+          onRetryAnalysis={(run) => void requestAnalysis(run)}
+          onToggleAnalysis={toggleAnalysis}
+          repositoryLabel={activeRepositoryLabel}
+          requestStates={requestStates}
+          runs={filteredRuns}
+        />
+        <DiagnosisPanel
+          onAuthorize={
+            latestFailure
+              ? (accessToken) =>
+                  void requestAnalysis(latestFailure, accessToken)
+              : undefined
+          }
+          onRetry={
+            latestFailure ? () => void requestAnalysis(latestFailure) : undefined
+          }
+          request={latestFailure ? requestStates[latestFailure.id] : undefined}
+          run={latestFailure}
+        />
 
         <footer className={styles.footer}>
           <p>

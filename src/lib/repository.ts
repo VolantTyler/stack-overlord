@@ -3,6 +3,10 @@ import { and, desc, eq } from "drizzle-orm";
 import { getDb } from "@/db";
 import { pipelineEvents, pipelineRuns } from "@/db/schema";
 import { demoPipelineRuns } from "@/lib/demo-data";
+import {
+  getDemoPipelineRuns,
+  type DashboardMode,
+} from "@/lib/demo-mode";
 import type {
   DashboardSource,
   Diagnosis,
@@ -37,15 +41,28 @@ export async function listPipelineRuns(): Promise<{
   source: DashboardSource;
 }>;
 export async function listPipelineRuns(input: {
+  mode?: DashboardMode;
+  replayTimestamp?: number | null;
   repository?: string;
 }): Promise<{
   runs: PipelineRun[];
   source: DashboardSource;
 }>;
-export async function listPipelineRuns(input: { repository?: string } = {}): Promise<{
+export async function listPipelineRuns(input: {
+  mode?: DashboardMode;
+  replayTimestamp?: number | null;
+  repository?: string;
+} = {}): Promise<{
   runs: PipelineRun[];
   source: DashboardSource;
 }> {
+  if (input.mode === "demo") {
+    return {
+      runs: getDemoPipelineRuns(input.replayTimestamp),
+      source: "demo",
+    };
+  }
+
   const repository = input.repository?.trim();
   const db = getDb();
   if (!db) {
