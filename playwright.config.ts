@@ -33,8 +33,14 @@ export default defineConfig({
   webServer: externalBaseUrl
     ? undefined
     : {
-        command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
-        url: baseURL,
+      command: `npm run dev -- --hostname 127.0.0.1 --port ${port}`,
+      // Browser assertions target deterministic demo fixtures, not a developer's
+      // locally configured production database.
+      env: {
+        ...process.env,
+        DATABASE_URL: "",
+      },
+      url: baseURL,
         reuseExistingServer: true,
         timeout: 120_000,
       },

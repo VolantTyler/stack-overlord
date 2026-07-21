@@ -1,7 +1,9 @@
 #!/usr/bin/env node
 
-const DEFAULT_REPOSITORY = "VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo";
-const DEFAULT_WORKFLOW = "sandbox-deployment-demo.yml";
+const SANDBOX_REPOSITORY = "VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo";
+const SANDBOX_WORKFLOW = "sandbox-deployment-demo.yml";
+const SANDBOX_REF = "main";
+const LOCKED_TARGET_OPTIONS = ["--repo", "--workflow", "--ref", "--webhook-url"];
 
 function usage() {
   console.log(`Trigger a sandbox deployment demo workflow.
@@ -10,12 +12,11 @@ Usage:
   npm run demo:deployment:trigger -- --result <success|failure> [options]
 
 Options:
-  --repo <owner/name>       Sandbox repository (default: ${DEFAULT_REPOSITORY})
-  --workflow <file.yml>     Workflow id or file name (default: ${DEFAULT_WORKFLOW})
-  --ref <ref>               Git ref to run (default: main)
-  --webhook-url <url>       Optional Stack Overlord webhook URL passed to the workflow
   --dry-run                 Print the GitHub API request without sending it
   --help                    Show this help
+
+This command is hard-locked to ${SANDBOX_REPOSITORY},
+${SANDBOX_WORKFLOW}, and ${SANDBOX_REF}.
 
 Authentication:
   Set GITHUB_TOKEN to a token with Actions workflow dispatch access to the sandbox repository.
@@ -33,29 +34,32 @@ if (args.includes("--help") || args.length === 0) {
   process.exit(args.length === 0 ? 1 : 0);
 }
 
+const lockedTargetOption = args.find((argument) =>
+  LOCKED_TARGET_OPTIONS.some(
+    (optionName) =>
+      argument === optionName || argument.startsWith(`${optionName}=`),
+  ),
+);
+if (lockedTargetOption) {
+  console.error(
+    `${lockedTargetOption.split("=")[0]} is not supported. This command is hard-locked to ${SANDBOX_REPOSITORY}, ${SANDBOX_WORKFLOW}, and ${SANDBOX_REF}.`,
+  );
+  process.exit(1);
+}
+
 const result = option(args, "--result");
 if (!["success", "failure"].includes(result ?? "")) {
   console.error("Pass --result success or --result failure.");
   process.exit(1);
 }
 
-const repository = option(args, "--repo") ?? DEFAULT_REPOSITORY;
-if (!/^[^/]+\/[^/]+$/.test(repository)) {
-  console.error("--repo must be formatted as owner/name.");
-  process.exit(1);
-}
-
-const workflow = option(args, "--workflow") ?? DEFAULT_WORKFLOW;
-const ref = option(args, "--ref") ?? "main";
-const webhookUrl = option(args, "--webhook-url");
 const body = {
-  ref,
+  ref: SANDBOX_REF,
   inputs: {
     result,
-    ...(webhookUrl ? { stack_overlord_webhook_url: webhookUrl } : {}),
   },
 };
-const endpoint = `https://api.github.com/repos/${repository}/actions/workflows/${encodeURIComponent(workflow)}/dispatches`;
+const endpoint = `https://api.github.com/repos/${SANDBOX_REPOSITORY}/actions/workflows/${encodeURIComponent(SANDBOX_WORKFLOW)}/dispatches`;
 
 if (args.includes("--dry-run")) {
   console.log(JSON.stringify({ method: "POST", endpoint, body }, null, 2));
@@ -81,7 +85,7 @@ const response = await fetch(endpoint, {
 });
 
 if (response.status === 204) {
-  console.log(`Triggered ${result} deployment demo in ${repository} on ${ref}.`);
+  console.log(`Triggered ${result} deployment demo in ${SANDBOX_REPOSITORY} on ${SANDBOX_REF}.`);
   process.exit(0);
 }
 

@@ -84,7 +84,7 @@ function signedRequest(payload: Record<string, unknown> = workflowPayload) {
     method: "POST",
     body,
     headers: {
-      "x-github-delivery": "delivery-123",
+      "x-github-delivery": "550e8400-e29b-41d4-a716-446655440000",
       "x-github-event": "workflow_run",
       "x-hub-signature-256": signature,
     },
@@ -268,11 +268,79 @@ describe("GitHub webhook persistence ordering", () => {
     expect(mocks.savePipelineEvent).not.toHaveBeenCalled();
   });
 
-  it("returns unsupported-payload status after event persistence only", async () => {
+  it("requires a signed GitHub event header before persistence", async () => {
+    const request = signedRequest();
+    request.headers.delete("x-github-event");
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    expect(mocks.savePipelineEvent).not.toHaveBeenCalled();
+    expect(mocks.savePipelineRun).not.toHaveBeenCalled();
+  });
+
+  it("requires a GitHub delivery GUID before persistence", async () => {
+    const request = signedRequest();
+    request.headers.set("x-github-delivery", "delivery-123");
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(400);
+    expect(mocks.savePipelineEvent).not.toHaveBeenCalled();
+    expect(mocks.savePipelineRun).not.toHaveBeenCalled();
+  });
+
+  it("acknowledges a signed GitHub ping without persisting it", async () => {
+    const request = signedRequest({ zen: "Keep it logically awesome." });
+    request.headers.set("x-github-event", "ping");
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(200);
+    await expect(response.json()).resolves.toMatchObject({
+      accepted: true,
+      persisted: false,
+      eventName: "ping",
+    });
+    expect(mocks.savePipelineEvent).not.toHaveBeenCalled();
+    expect(mocks.savePipelineRun).not.toHaveBeenCalled();
+  });
+
+  it("rejects signed unsupported events before persistence", async () => {
+    const request = signedRequest();
+    request.headers.set("x-github-event", "push");
+
+    const response = await POST(request);
+
+    expect(response.status).toBe(422);
+    expect(mocks.savePipelineEvent).not.toHaveBeenCalled();
+    expect(mocks.savePipelineRun).not.toHaveBeenCalled();
+  });
+
+  it("accepts signed workflow runs from any configured repository", async () => {
     mocks.savePipelineEvent.mockResolvedValue("stored");
+    mocks.savePipelineRun.mockResolvedValue(runRevision);
+    const response = await POST(
+      signedRequest({
+        ...workflowPayload,
+        repository: { full_name: "VolantTyler/another-repository" },
+      }),
+    );
+
+    expect(response.status).toBe(200);
+    expect(mocks.savePipelineEvent).toHaveBeenCalledWith(
+      expect.objectContaining({ repository: "VolantTyler/another-repository" }),
+    );
+    expect(mocks.savePipelineRun).toHaveBeenCalledWith(
+      expect.objectContaining({ repository: "VolantTyler/another-repository" }),
+    );
+  });
+
+  it("rejects malformed workflow payloads before event persistence", async () => {
     const response = await POST(signedRequest({ action: "completed", repository: {} }));
 
     expect(response.status).toBe(422);
+    expect(mocks.savePipelineEvent).not.toHaveBeenCalled();
     expect(mocks.savePipelineRun).not.toHaveBeenCalled();
     expect(mocks.afterCallbacks).toHaveLength(0);
   });

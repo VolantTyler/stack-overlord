@@ -5,7 +5,6 @@ import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";
 
 const SCENARIOS = {
-  push: { event: "push", fixture: "push.json" },
   running: { event: "workflow_run", fixture: "workflow-running.json" },
   success: { event: "workflow_run", fixture: "workflow-success.json" },
   cancelled: { event: "workflow_run", fixture: "workflow-cancelled.json" },
@@ -23,7 +22,7 @@ Scenarios: ${Object.keys(SCENARIOS).join(", ")}
 Options:
   --url <url>          Webhook endpoint (default: http://localhost:3000/api/webhooks/github)
   --secret <secret>    Signing secret (default: GITHUB_WEBHOOK_SECRET)
-  --delivery <id>      Fixed delivery id, useful for idempotency demos
+  --delivery <GUID>    Fixed GitHub delivery GUID, useful for idempotency demos
   --invalid-signature  Deliberately sign with the wrong secret
   --dry-run            Print the request without sending it
   --fixture <path>      Send a specific sanitized fixture instead of the scenario fixture
@@ -78,7 +77,11 @@ const rawBody = fixturePath
     );
 const signingSecret = args.includes("--invalid-signature") ? `${secret}-wrong` : secret;
 const signature = `sha256=${createHmac("sha256", signingSecret).update(rawBody).digest("hex")}`;
-const delivery = option(args, "--delivery") ?? `stack-overlord-demo-${randomUUID()}`;
+const delivery = option(args, "--delivery") ?? randomUUID();
+if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(delivery)) {
+  console.error("--delivery must be a GitHub delivery GUID.");
+  process.exit(1);
+}
 const headers = {
   "content-type": "application/json",
   "x-github-event": scenario.event,

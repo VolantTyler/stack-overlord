@@ -30,9 +30,9 @@ Use a separate terminal for the replay commands. The helper signs the exact fixt
 
 ### End-to-end real sandbox deployment tour
 
-Use this mode when the audience needs to see Stack Overlord backed by real GitHub Actions deployment conclusions instead of only static fixtures. The force scripts target the isolated `VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo` repository by default. Keep that default unless you are intentionally using another disposable sandbox.
+Use this mode when the audience needs to see Stack Overlord backed by real GitHub Actions deployment conclusions instead of only static fixtures. The force scripts are hard-locked to the isolated `VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo` repository, its `sandbox-deployment-demo.yml` workflow, and `main`.
 
-1. Ensure `.github/workflows/sandbox-deployment-demo.yml` exists on the sandbox repository's `main` branch.
+1. Ensure the guarded `sandbox-deployment-demo.yml` workflow exists on the sandbox repository's `main` branch.
 2. Trigger a real successful sandbox deployment demonstration:
 
 ```bash
@@ -95,14 +95,13 @@ For the end-to-end tour, send each factual state and refresh the dashboard after
 
 ```bash
 export GITHUB_WEBHOOK_SECRET=stack-overlord-local-demo
-npm run demo:webhook -- push
 npm run demo:webhook -- running
 npm run demo:webhook -- success
 npm run demo:webhook -- cancelled
 npm run demo:webhook -- failure
 ```
 
-The `push` event demonstrates correlation telemetry: it is accepted and persisted, but does not invent a workflow row. The remaining events demonstrate GitHub-derived running, successful, cancelled, and failed states. Failure telemetry is saved before optional GitHub evidence collection, OpenAI Responses analysis, or Slack notification.
+These `workflow_run` deliveries demonstrate GitHub-derived running, successful, cancelled, and failed states. Failure telemetry is saved before optional GitHub evidence collection, OpenAI Responses analysis, or Slack notification.
 
 Without `OPENAI_API_KEY`, every factual run remains visible and each deterministic
 demo row expands a hand-authored fixture labeled with **Model call: None** and
@@ -126,8 +125,8 @@ npm run demo:webhook -- success --invalid-signature
 Send a fixed delivery twice to demonstrate duplicate-delivery protection. Both requests are safely accepted; the database keeps one event because delivery ids are unique.
 
 ```bash
-npm run demo:webhook -- success --delivery demo-idempotency-001
-npm run demo:webhook -- success --delivery demo-idempotency-001
+npm run demo:webhook -- success --delivery 550e8400-e29b-41d4-a716-446655440000
+npm run demo:webhook -- success --delivery 550e8400-e29b-41d4-a716-446655440000
 ```
 
 Preview any request, including its headers and payload, without sending it:
@@ -140,7 +139,6 @@ npm run demo:webhook -- failure --dry-run
 
 | Scenario | Expected API result | Dashboard result | Optional side effects |
 | --- | --- | --- | --- |
-| `push` | `200`, accepted | No new workflow row | Correlation event persisted with Postgres |
 | `running` | `200`, status `running` | Running preview row | None |
 | `success` | `200`, status `success` | Successful release row | None |
 | `cancelled` | `200`, status `cancelled` | Cancelled preview row | None |

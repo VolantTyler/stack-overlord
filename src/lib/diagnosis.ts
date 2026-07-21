@@ -162,6 +162,7 @@ export async function analyzePipelineRun(
 
   const response = await openai.responses.parse({
     model: requestedModel,
+    store: false,
     max_output_tokens: 8_000,
     reasoning: { effort: "medium" },
     input: [

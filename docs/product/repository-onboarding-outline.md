@@ -18,7 +18,7 @@ A concise product outline for evolving Stack Overlord from a single demo dashboa
 
 Not at the database level.
 
-The current schema stores a `repository` value on both raw events and normalized pipeline runs, so events from multiple repositories can technically be stored.
+The current schema stores a `repository` value on both raw events and normalized pipeline runs, so signed `workflow_run` deliveries from multiple repositories can technically be stored. This shared-secret ingress does not yet prove a repository was intentionally approved; that requires a connection registry or GitHub App installation.
 
 However, the product UI is currently a shared global dashboard. The home page loads recent runs without filtering by repository, user, organization, or installation.
 
@@ -164,7 +164,7 @@ For manual setup, show:
 Payload URL: https://YOUR-DOMAIN/api/webhooks/github
 Content type: application/json
 Secret: generated or configured webhook secret
-Events: Pushes, Pull requests, Workflow runs
+Events: Workflow runs
 ```
 
 ### 5.5 Verify connection

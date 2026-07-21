@@ -10,8 +10,8 @@ Developers using AI agents and automated delivery pipelines who are vulnerable t
 
 ## MVP
 
-- Receive signed `push`, `pull_request`, and `workflow_run` GitHub webhooks.
-- Store all accepted deliveries in Postgres and normalize workflow runs into a pipeline ledger.
+- Receive signed `workflow_run` GitHub webhooks.
+- Store accepted workflow-run deliveries in Postgres and normalize them into a pipeline ledger.
 - Display success, failure, running, and cancelled states in a responsive dashboard.
 - Give every process an accessible, expandable Analyze control on desktop and mobile.
 - Enrich failures with GitHub job and failed-step evidence.

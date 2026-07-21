@@ -42,7 +42,7 @@ the [demo walkthrough](docs/demo-walkthrough.md).
 
 ## Sandbox deployment demonstrations
 
-Use the isolated Cognitive Bridge sandbox repository for live deployment demos; never run controlled failures against the production repository or Firebase project. The sandbox workflow and helpers produce one factual deployment success and one controlled deployment failure, then save sanitized `workflow_run` webhook fixtures from those real GitHub Actions runs.
+Use the isolated Cognitive Bridge sandbox repository for live deployment demos; never run controlled failures against the production repository or Firebase project. The dispatch helper is hard-locked to that sandbox repository, its `sandbox-deployment-demo.yml` workflow, and `main`. The sandbox workflow and helpers produce one factual deployment success and one controlled deployment failure, then save sanitized `workflow_run` webhook fixtures from those real GitHub Actions runs.
 
 Trigger the success path:
 
@@ -92,7 +92,7 @@ npm run db:generate
 npm run db:push
 ```
 
-The system stores every accepted GitHub delivery idempotently. `workflow_run` events are normalized into the pipeline ledger; other subscribed events are retained for correlation.
+The system stores accepted signed `workflow_run` deliveries idempotently and normalizes them into the pipeline ledger. Signed GitHub setup `ping` deliveries are acknowledged without being stored.
 
 ## GitHub webhook
 
@@ -104,11 +104,9 @@ https://YOUR-VERCEL-DOMAIN/api/webhooks/github
 
 Use JSON content, set the same random secret in GitHub and `GITHUB_WEBHOOK_SECRET`, and subscribe to:
 
-- Pushes
-- Pull requests
 - Workflow runs
 
-Invalid signatures receive `401`. Missing webhook configuration receives `503`. Duplicate GitHub delivery IDs are ignored by the database constraint.
+Invalid signatures receive `401`; missing/invalid event or delivery headers receive `400`; unsupported signed events receive `422`; and missing webhook configuration receives `503`. Duplicate valid GitHub delivery IDs are ignored by the database constraint.
 
 ## How Codex accelerated the build
 
@@ -129,6 +127,9 @@ is an API integration, not a ChatGPT conversation. Each live result records the
 requested model, the model reported by the API, and the response id. Deterministic
 demo analyses are hand-authored, labeled as seeded fixtures, and explicitly report
 that no model call or API response occurred.
+
+Live Responses API requests set `store: false`; Stack Overlord retains only its
+bounded structured diagnosis in its own pipeline ledger.
 
 The model receives the already-determined run state, bounded run metadata, and
 available GitHub Actions job and relevant step records. Every displayed evidence item

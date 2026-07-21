@@ -69,11 +69,12 @@ export default async function OnboardingPage() {
           <CodeBlock>{`Payload URL: ${webhookUrl}
 Content type: application/json
 Secret: same value as GITHUB_WEBHOOK_SECRET
-Events: Pushes, Pull requests, Workflow runs`}</CodeBlock>
+Events: Workflow runs`}</CodeBlock>
           <p className="text-sm leading-6 text-slate-300">
-            The app accepts all signed deliveries at one endpoint. Repository
-            dashboards filter runs by the GitHub repository name from each
-            workflow payload.
+            The app accepts signed workflow-run deliveries at one endpoint.
+            Configure each repository you want to monitor with that secret;
+            repository dashboards filter runs by the GitHub repository name in
+            each workflow payload.
           </p>
         </div>
       </section>

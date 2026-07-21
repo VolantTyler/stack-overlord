@@ -27,6 +27,12 @@ const workflowRunPayloadSchema = z.object({
   }),
 });
 
+const githubDeliveryIdSchema = z.guid();
+
+export function isGitHubDeliveryId(deliveryId: string | null): deliveryId is string {
+  return githubDeliveryIdSchema.safeParse(deliveryId).success;
+}
+
 export function verifyGitHubSignature(
   rawBody: string,
   signature: string | null,

@@ -7,9 +7,9 @@ Use this runbook to create the two deployment demonstrations Stack Overlord need
 
 The failure demo must run only in the isolated Cognitive Bridge sandbox repository. Do not target the production repository or Firebase project.
 
-## 1. Install the sandbox workflow
+## 1. Confirm the sandbox workflow
 
-Copy `.github/workflows/sandbox-deployment-demo.yml` into `VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo` on `main` if it is not already present there. The workflow is manually dispatched and has a `result` input with `success` and `failure` choices.
+Confirm the guarded `sandbox-deployment-demo.yml` workflow is present in `VolantTyler/Cognitive-Bridge-Stack-Overlord-Demo` on `main`. It is manually dispatched with a `result` input for `success` or `failure`. Do not copy or dispatch a demo workflow from the Stack Overlord application repository.
 
 ## 2. Trigger the success run
 
@@ -27,10 +27,10 @@ GITHUB_TOKEN=... npm run demo:deployment:force-failure
 
 The workflow intentionally fails in the `Produce controlled sandbox deployment failure` step. This gives Stack Overlord a deployment demonstration failure rather than another `Psychometric Agent Evaluation` result.
 
-The lower-level trigger remains available when you need to override the sandbox repository, workflow file, or git ref:
+Preview the immutable sandbox dispatch without starting a run:
 
 ```bash
-npm run demo:deployment:trigger -- --result success --repo owner/name --workflow sandbox-deployment-demo.yml --ref main --dry-run
+npm run demo:deployment:trigger -- --result success --dry-run
 ```
 
 ## 4. Save sanitized webhook fixtures from the real runs

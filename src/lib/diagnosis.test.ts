@@ -100,6 +100,7 @@ describe("analyzePipelineRun", () => {
         max_output_tokens: 8_000,
         model: "gpt-5.6",
         reasoning: { effort: "medium" },
+        store: false,
         text: expect.objectContaining({ verbosity: "high" }),
       }),
     );

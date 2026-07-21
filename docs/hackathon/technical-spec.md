@@ -28,9 +28,11 @@ Behavior:
 
 - Return `503` when webhook verification is not configured.
 - Return `401` for an invalid signature.
-- Return `400` for invalid JSON.
-- Persist every supported signed delivery idempotently.
-- Normalize `workflow_run` payloads into a pipeline run.
+- Return `400` for invalid JSON or missing/invalid required event and delivery headers.
+- Acknowledge a signed GitHub `ping` without persistence.
+- Return `422` for a signed event other than `workflow_run` or an invalid workflow-run payload.
+- Persist each accepted signed `workflow_run` delivery idempotently.
+- Normalize each accepted `workflow_run` payload into a pipeline run.
 - Store a failed run before evidence enrichment, GPT-5.6, or Slack.
 - Treat diagnosis and notification failures as non-destructive follow-on errors.
 

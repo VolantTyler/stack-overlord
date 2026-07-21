@@ -3,6 +3,7 @@ import { after } from "next/server";
 import { diagnoseFailure } from "@/lib/diagnosis";
 import {
   fetchWorkflowEvidence,
+  isGitHubDeliveryId,
   verifyGitHubSignature,
   webhookMetadata,
   workflowRunFromPayload,
@@ -118,12 +119,7 @@ function scheduleOptionalFailureWork(
 
 export async function POST(request: Request) {
   const startedAt = performance.now();
-  const rawBody = await request.text();
-  const signature = request.headers.get("x-hub-signature-256");
-  const eventName = request.headers.get("x-github-event") ?? "unknown";
-  const deliveryId = request.headers.get("x-github-delivery") ?? crypto.randomUUID();
   const secret = process.env.GITHUB_WEBHOOK_SECRET;
-  const baseContext = { deliveryId, eventName };
 
   if (!secret) {
     return Response.json(
@@ -132,8 +128,36 @@ export async function POST(request: Request) {
     );
   }
 
+  const rawBody = await request.text();
+  const signature = request.headers.get("x-hub-signature-256");
   if (!verifyGitHubSignature(rawBody, signature, secret)) {
     return Response.json({ error: "Invalid webhook signature." }, { status: 401 });
+  }
+
+  const eventName = request.headers.get("x-github-event");
+  if (!eventName) {
+    return Response.json({ error: "Missing GitHub webhook event." }, { status: 400 });
+  }
+
+  const deliveryId = request.headers.get("x-github-delivery");
+  if (!isGitHubDeliveryId(deliveryId)) {
+    return Response.json(
+      { error: "GitHub webhook delivery ID must be a GUID." },
+      { status: 400 },
+    );
+  }
+
+  const baseContext = { deliveryId, eventName };
+  if (eventName === "ping") {
+    logWebhookTiming("github_webhook_ping_acknowledged", baseContext, startedAt);
+    return Response.json({ accepted: true, persisted: false, eventName });
+  }
+
+  if (eventName !== "workflow_run") {
+    return Response.json(
+      { error: "Unsupported GitHub webhook event." },
+      { status: 422 },
+    );
   }
 
   let payload: Record<string, unknown>;
@@ -143,15 +167,23 @@ export async function POST(request: Request) {
     return Response.json({ error: "Webhook body is not valid JSON." }, { status: 400 });
   }
 
+  const run = workflowRunFromPayload(payload);
+  if (!run) {
+    return Response.json(
+      { error: "Unsupported workflow_run payload." },
+      { status: 422 },
+    );
+  }
+
   const metadata = webhookMetadata(payload);
-  const context = { ...baseContext, repository: metadata.repository };
+  const context = { ...baseContext, repository: run.repository };
   logWebhookTiming("github_webhook_verified", context, startedAt);
 
   const persistence = await savePipelineEvent({
     deliveryId,
     eventName,
     action: metadata.action,
-    repository: metadata.repository,
+    repository: run.repository,
     payload,
   });
 
@@ -178,19 +210,6 @@ export async function POST(request: Request) {
 
   const persisted = true;
   logWebhookTiming("github_webhook_event_persisted", context, startedAt);
-
-  if (eventName !== "workflow_run") {
-    logWebhookTiming("github_webhook_acknowledged", context, startedAt);
-    return Response.json({ accepted: true, persisted, eventName });
-  }
-
-  const run = workflowRunFromPayload(payload);
-  if (!run) {
-    return Response.json(
-      { error: "Unsupported workflow_run payload." },
-      { status: 422 },
-    );
-  }
 
   const runContext = { ...context, runId: run.id };
   const runPersisted = await savePipelineRun(run);
