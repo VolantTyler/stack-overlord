@@ -187,7 +187,7 @@ const confidenceDetails: Record<
   },
   low: {
     guidance: "Low confidence — treat these steps as hypotheses and verify before acting.",
-    icon: AlertTriangle,
+    icon: XCircle,
   },
 };
 
@@ -583,9 +583,6 @@ function AnalysisDetails({
                 ? "AI summary"
                 : "Saved legacy summary"}
           </SectionHeading>
-          <span className={styles.confidence}>
-            {analysis.confidence} confidence
-          </span>
         </div>
         <p>{analysis.summary}</p>
       </section>
@@ -830,16 +827,6 @@ function PipelineRunItem({
               Replay
             </span>
           )}
-          {run.diagnosis && ConfidenceIcon && (
-            <span
-              className={styles.rowConfidence}
-              data-confidence={run.diagnosis.confidence}
-              data-testid="row-confidence"
-            >
-              <ConfidenceIcon aria-hidden="true" />
-              {run.diagnosis.confidence} confidence
-            </span>
-          )}
         </div>
         <div className={styles.runWorkflow}>
           <strong>{run.workflowName}</strong>
@@ -865,12 +852,19 @@ function PipelineRunItem({
             aria-controls={regionId}
             aria-expanded={expanded}
             aria-label={`${expanded ? "Hide analysis for" : "Analyze"} ${
-              run.workflowName
-            } run ${shortSha(run.commitSha)} on ${run.repository}`}
+              run.diagnosis
+                ? `${run.diagnosis.confidence} confidence `
+                : ""
+            }${run.workflowName} run ${shortSha(run.commitSha)} on ${
+              run.repository
+            }`}
+            data-confidence={run.diagnosis?.confidence}
             onClick={() => onToggleAnalysis(run)}
           >
             {loading ? (
               <LoaderCircle className={styles.loadingIcon} aria-hidden="true" />
+            ) : ConfidenceIcon ? (
+              <ConfidenceIcon aria-hidden="true" />
             ) : (
               <Sparkles aria-hidden="true" />
             )}

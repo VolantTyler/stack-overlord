@@ -247,27 +247,26 @@ test("expands saved row analyses one at a time without moving the featured failu
     ),
   ).toBeVisible();
 
-  const highConfidence = firstRegion.getByText("high confidence", {
-    exact: true,
-  });
   const highRecommendation = firstRegion
     .getByRole("heading", { name: "Recommended next steps" })
     .locator("xpath=ancestor::section[1]")
     .locator("ol > li > span")
     .first();
-  const highColors = await Promise.all(
-    [highConfidence, highRecommendation].map((element) =>
-      element.evaluate(
-        (node) => window.getComputedStyle(node).backgroundColor,
-      ),
+  const highColors = await Promise.all([
+    latestFailureControl.locator("svg").first().evaluate(
+      (node) => window.getComputedStyle(node).color,
     ),
-  );
-  expect(highColors[0]).toBe(highColors[1]);
+    highRecommendation.evaluate(
+      (node) => window.getComputedStyle(node).backgroundColor,
+    ),
+  ]);
+  expect(highColors[0]).toBe("rgb(22, 127, 58)");
+  expect(highColors[1]).toBe("rgb(22, 127, 58)");
   await expect(
     latestFailureControl
       .locator("xpath=ancestor::article[1]")
       .getByTestId("row-confidence"),
-  ).toBeVisible();
+  ).toHaveCount(0);
 
   const olderFailureButton = page.getByRole("button", {
     name: /^Analyze .* run ef238f4 /,
@@ -287,22 +286,21 @@ test("expands saved row analyses one at a time without moving the featured failu
       { exact: true },
     ),
   ).toBeVisible();
-  const mediumConfidence = olderRegion.getByText("medium confidence", {
-    exact: true,
-  });
   const mediumRecommendation = olderRegion
     .getByRole("heading", { name: "Recommended next steps" })
     .locator("xpath=ancestor::section[1]")
     .locator("ol > li > span")
     .first();
-  const mediumColors = await Promise.all(
-    [mediumConfidence, mediumRecommendation].map((element) =>
-      element.evaluate(
-        (node) => window.getComputedStyle(node).backgroundColor,
-      ),
+  const mediumColors = await Promise.all([
+    olderFailureControl.locator("svg").first().evaluate(
+      (node) => window.getComputedStyle(node).color,
     ),
-  );
-  expect(mediumColors[0]).toBe(mediumColors[1]);
+    mediumRecommendation.evaluate(
+      (node) => window.getComputedStyle(node).backgroundColor,
+    ),
+  ]);
+  expect(mediumColors[0]).toBe("rgb(255, 211, 61)");
+  expect(mediumColors[1]).toBe("rgb(255, 211, 61)");
   expect(mediumColors[0]).not.toBe(highColors[0]);
   await expect(
     page.getByRole("heading", { level: 2, name: "Latest failure analysis" }),
