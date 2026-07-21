@@ -757,39 +757,16 @@
   height: 10px;
 }
 
-.rowConfidence {
-  display: inline-flex;
-  width: fit-content;
-  min-height: 22px;
-  align-items: center;
-  gap: 5px;
-  padding: 0 7px;
-  color: var(--confidence-ink);
-  border: 1px solid color-mix(in srgb, var(--confidence-color) 72%, #17324a);
-  background: var(--confidence-color);
-  font: 900 8px/1 var(--font-geist-mono), monospace;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
+.analyzeButton[data-confidence="high"] svg {
+  color: #167f3a;
 }
 
-.rowConfidence svg {
-  width: 11px;
-  height: 11px;
+.analyzeButton[data-confidence="medium"] svg {
+  color: #ffd33d;
 }
 
-.rowConfidence[data-confidence="high"] {
-  --confidence-color: #167f3a;
-  --confidence-ink: #fff;
-}
-
-.rowConfidence[data-confidence="medium"] {
-  --confidence-color: #ffd33d;
-  --confidence-ink: #17324a;
-}
-
-.rowConfidence[data-confidence="low"] {
-  --confidence-color: #c93434;
-  --confidence-ink: #fff;
+.analyzeButton[data-confidence="low"] svg {
+  color: #c93434;
 }
 
 .runWorkflow,
@@ -1049,7 +1026,8 @@
 
 .analysisDetails {
   display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
+  grid-auto-flow: dense;
   gap: 12px;
   margin-top: 22px;
 }
@@ -1075,12 +1053,6 @@
   --confidence-soft-ink: #8d2020;
 }
 
-.analysisDetails[data-confidence] .confidence {
-  color: var(--confidence-ink);
-  border-color: color-mix(in srgb, var(--confidence-color) 72%, #17324a);
-  background: var(--confidence-color);
-}
-
 .analysisSection {
   min-width: 0;
   padding: 17px;
@@ -1089,11 +1061,22 @@
 }
 
 .analysisSummary,
-.analysisCause,
-.analysisContext,
-.analysisLimitations,
+.analysisCause {
+  grid-column: span 3;
+}
+
+.analysisSection:not(.analysisSummary, .analysisCause, .analysisContext, .analysisRecommendations, .analysisLimitations, .analysisTrace),
+.analysisRecommendations,
+.analysisLimitations {
+  grid-column: span 2;
+}
+
+.analysisContext {
+  grid-column: span 4;
+}
+
 .analysisTrace {
-  grid-column: 1 / -1;
+  grid-column: span 2;
 }
 
 .analysisSectionHeader {
@@ -1397,19 +1380,24 @@
 }
 
 .diagnosis .analysisDetails {
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  grid-template-columns: repeat(6, minmax(0, 1fr));
 }
 
 .diagnosis .analysisSection {
-  grid-column: auto;
+  grid-column: span 2;
 }
 
 .diagnosis .analysisSummary,
-.diagnosis .analysisCause,
-.diagnosis .analysisContext,
-.diagnosis .analysisLimitations,
+.diagnosis .analysisCause {
+  grid-column: span 3;
+}
+
+.diagnosis .analysisContext {
+  grid-column: span 4;
+}
+
 .diagnosis .analysisTrace {
-  grid-column: 1 / -1;
+  grid-column: span 2;
 }
 
 .diagnosis .analysisMeta {
@@ -2799,12 +2787,23 @@
 
   .analysisDetails,
   .diagnosis .analysisDetails {
-    grid-template-columns: 1fr;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
   }
 
   .analysisSection,
   .diagnosis .analysisSection {
-    grid-column: 1;
+    grid-column: span 1;
+  }
+
+  .analysisSummary,
+  .analysisCause,
+  .analysisContext,
+  .analysisTrace,
+  .diagnosis .analysisSummary,
+  .diagnosis .analysisCause,
+  .diagnosis .analysisContext,
+  .diagnosis .analysisTrace {
+    grid-column: 1 / -1;
   }
 
   .analysisMeta,
@@ -2872,8 +2871,17 @@
     flex-direction: column;
   }
 
-  .cachedBadge,
-  .confidence {
+  .analysisDetails,
+  .diagnosis .analysisDetails {
+    grid-template-columns: 1fr;
+  }
+
+  .analysisSection,
+  .diagnosis .analysisSection {
+    grid-column: 1;
+  }
+
+  .cachedBadge {
     white-space: normal;
   }
 }
